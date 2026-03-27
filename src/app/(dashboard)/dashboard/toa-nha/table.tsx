@@ -234,7 +234,7 @@ const createColumns = (props: ToaNhaTableProps): ColumnDef<ToaNha>[] => [
     header: "Ngày tạo",
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.ngayTao ? new Date(row.original.ngayTao).toLocaleDateString('vi-VN') : 'N/A'}
+        {row.original.ngayTao ? new Date(row.original.ngayTao).toLocaleDateString('vi-VN') : 'Chưa có thông tin'}
       </span>
     ),
   },

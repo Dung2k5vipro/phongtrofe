@@ -6,6 +6,7 @@ import type {
   AuthSessionScope,
   LoginPayload,
   RegisterPayload,
+  TenantLoginPayload,
 } from "@/types/auth";
 import { toApiResponse } from "@/services/service-utils";
 
@@ -25,6 +26,37 @@ function toAuthResponse(payload: unknown): ApiResponse<AuthResponse> {
   }
 
   return { success: false, message: "Phản hồi không hợp lệ" };
+}
+
+// Backend có thể trả { success, message, token, khach_thue } hoặc bao trong .data
+function toTenantAuthResponse(payload: unknown): ApiResponse<AuthResponse> {
+  const response = toApiResponse<any>(payload);
+
+  if (!response.success) {
+    return response as ApiResponse<AuthResponse>;
+  }
+
+  const raw = (response.data ?? payload ?? {}) as any;
+  const token =
+    raw?.token ?? raw?.accessToken ?? raw?.data?.token ?? raw?.data?.accessToken;
+  const tenant =
+    raw?.khachThue ??
+    raw?.khach_thue ??
+    raw?.user ??
+    raw?.data?.khachThue ??
+    raw?.data?.khach_thue ??
+    raw?.data?.user;
+
+  return {
+    ...response,
+    data: {
+      token,
+      accessToken: raw?.accessToken ?? raw?.token ?? raw?.data?.accessToken ?? raw?.data?.token,
+      refreshToken: raw?.refreshToken ?? raw?.data?.refreshToken,
+      user: tenant,
+      khachThue: tenant,
+    },
+  };
 }
 
 /**
@@ -77,9 +109,23 @@ export function logoutClientSide(scope: AuthSessionScope = "main"): void {
   clearMainAuthSession();
 }
 
+export async function tenantLogin(payload: TenantLoginPayload): Promise<ApiResponse<AuthResponse>> {
+  const data = await http.post("/khach_thue/login", {
+    body: {
+      so_dien_thoai: payload.soDienThoai,
+      mat_khau: payload.matKhau,
+    },
+    // Avoid sending main-session Authorization header automatically
+    token: "",
+  });
+
+  return toTenantAuthResponse(data);
+}
+
 export const authService = {
   register,
   login,
+  tenantLogin,
   getMe,
   logoutClientSide,
 };

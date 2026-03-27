@@ -464,7 +464,7 @@ export default function PhongPage() {
                               <span className="text-xs font-medium text-blue-900">Người thuê</span>
                             </div>
                             <div className="text-sm text-gray-900 font-medium">
-                              {nguoiDaiDien?.hoTen || 'N/A'}
+                              {nguoiDaiDien?.hoTen || 'Chưa có thông tin'}
                             </div>
                             {nguoiDaiDien?.soDienThoai && (
                               <div className="text-xs text-gray-600">

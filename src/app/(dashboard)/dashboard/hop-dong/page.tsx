@@ -800,7 +800,7 @@ export default function HopDongPage() {
               children: [
                 new TextRun({
                   text: `Ngày tạo: ${
-                    toValidDate(hopDong.ngayTao)?.toLocaleDateString('vi-VN') || 'N/A'
+                    toValidDate(hopDong.ngayTao)?.toLocaleDateString('vi-VN') || 'Chưa có thông tin'
                   }`,
                   size: 16,
                 }),
@@ -1065,11 +1065,11 @@ export default function HopDongPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-gray-500">Ngày tạo</Label>
-                    <p className="text-sm">{toValidDate(viewingHopDong.ngayTao)?.toLocaleDateString('vi-VN') || 'N/A'}</p>
+                    <p className="text-sm">{toValidDate(viewingHopDong.ngayTao)?.toLocaleDateString('vi-VN') || 'Chưa có thông tin'}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-500">Ngày cập nhật</Label>
-                    <p className="text-sm">{toValidDate(viewingHopDong.ngayCapNhat)?.toLocaleDateString('vi-VN') || 'N/A'}</p>
+                    <p className="text-sm">{toValidDate(viewingHopDong.ngayCapNhat)?.toLocaleDateString('vi-VN') || 'Chưa có thông tin'}</p>
                   </div>
                 </div>
               </div>

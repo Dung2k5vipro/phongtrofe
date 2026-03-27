@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,7 @@ import { khachThueService } from '@/services/khachThueService';
 import { hopDongService } from '@/services/hopDongService';
 import { getErrorMessage } from '@/lib/api-error';
 import { SuCo, Phong, KhachThue, HopDong } from '@/types';
+import { resolveEntity } from '@/lib/entity';
 import { SuCoImageUpload } from '@/components/ui/su-co-image-upload';
 import { DeleteConfirmPopover } from '@/components/ui/delete-confirm-popover';
 import { SuCoDataTable } from './table';
@@ -198,19 +199,13 @@ export default function SuCoPage() {
   };
 
   const getPhongName = (phong: string | { maPhong: string }) => {
-    if (typeof phong === 'string') {
-      const phongObj = phongList.find(p => p._id === phong);
-      return phongObj?.maPhong || 'Không xác định';
-    }
-    return phong?.maPhong || 'Không xác định';
+    const phongObj = resolveEntity(phongList, phong as any);
+    return phongObj?.maPhong || 'Không xác định';
   };
 
   const getKhachThueName = (khachThue: string | { hoTen: string }) => {
-    if (typeof khachThue === 'string') {
-      const khachThueObj = khachThueList.find(k => k._id === khachThue);
-      return khachThueObj?.hoTen || 'Không xác định';
-    }
-    return khachThue?.hoTen || 'Không xác định';
+    const khachThueObj = resolveEntity(khachThueList, khachThue as any);
+    return khachThueObj?.hoTen || 'Không xác định';
   };
 
   const handleEdit = (suCo: SuCo) => {
@@ -458,11 +453,8 @@ export default function SuCoPage() {
         {/* Mobile Card List */}
         <div className="space-y-3">
           {filteredSuCo.map((suCo) => {
-            const phongInfo = typeof suCo.phong === 'object' ? suCo.phong : phongList.find(p => p._id === suCo.phong);
-            const khachThueInfo =
-              typeof suCo.khachThue === 'object'
-                ? suCo.khachThue
-                : khachThueList.find(k => k._id === suCo.khachThue);
+            const phongInfo = resolveEntity(phongList, suCo.phong as any);
+            const khachThueInfo = resolveEntity(khachThueList, suCo.khachThue as any);
             
             return (
               <Card key={suCo._id} className="p-4">
@@ -474,7 +466,7 @@ export default function SuCoPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <Home className="h-3 w-3 text-gray-400 flex-shrink-0" />
                         <span className="text-sm text-gray-600 truncate">
-                          {phongInfo?.maPhong || 'N/A'}
+                          {phongInfo?.maPhong || 'Chưa cập nhật'}
                         </span>
                       </div>
                     </div>
@@ -489,7 +481,7 @@ export default function SuCoPage() {
                     <div className="flex items-center gap-2">
                       <Users className="h-3 w-3 text-gray-400" />
                       <span className="text-gray-600 truncate">
-                        {khachThueInfo?.hoTen || 'N/A'}
+                        {khachThueInfo?.hoTen || 'Chưa cập nhật'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">

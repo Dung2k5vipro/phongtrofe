@@ -48,14 +48,38 @@ function mapKhachThueToBackend(payload: any): any {
   };
 }
 
+function extractList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.docs)) return payload.data.docs;
+  if (Array.isArray(payload?.docs)) return payload.docs;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
+}
+
 export async function getAllKhachThue(
   query?: ApiListQuery
 ): Promise<ApiResponse<KhachThue[]>> {
   const data = await http.get("/khach_thue", { query: withLimit(query, 100) });
-  const response = toApiResponse<any[]>(data);
-  if (response.success && Array.isArray(response.data)) {
-    response.data = response.data.map(mapKhachThueFromBackend);
+  const response = toApiResponse<any>(data);
+
+  if (response.success) {
+    const rawPayload = response.data ?? data;
+    const rawList = extractList(rawPayload);
+    const mapped = rawList.map(mapKhachThueFromBackend);
+
+    response.data = mapped as any;
+
+    // Giữ lại thông tin phân trang nếu backend trả về
+    response.pagination =
+      response.pagination ||
+      (rawPayload as any)?.pagination ||
+      (rawPayload as any)?.data?.pagination ||
+      (data as any)?.pagination ||
+      (data as any)?.data?.pagination;
   }
+
   return response as ApiResponse<KhachThue[]>;
 }
 
@@ -65,11 +89,9 @@ export async function getKhachThueById(
   const data = await http.get(`/khach_thue/${ensureStringId(id)}`);
   const response = toApiResponse<any>(data);
   if (response.success && response.data) {
-    if (Array.isArray(response.data)) {
-        response.data = mapKhachThueFromBackend(response.data[0]);
-    } else {
-        response.data = mapKhachThueFromBackend(response.data);
-    }
+    const rawList = extractList(response.data);
+    const raw = rawList.length > 0 ? rawList[0] : response.data;
+    response.data = mapKhachThueFromBackend(raw);
   }
   return response as ApiResponse<KhachThue>;
 }

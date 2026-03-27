@@ -86,7 +86,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { ThanhToan, HoaDon } from '@/types'
+import type { ThanhToan, HoaDon, Phong, KhachThue } from '@/types'
 import { resolveEntity, safeText } from "@/lib/entity"
 
 // Type cho ThanhToan đã được populate
@@ -152,6 +152,8 @@ function DragHandle({ id }: { id: string }) {
 
 type ThanhToanTableProps = {
   hoaDonList: HoaDon[]
+  phongList: Phong[]
+  khachThueList: KhachThue[]
   onView?: (thanhToan: ThanhToanPopulated) => void
   onEdit: (thanhToan: ThanhToanPopulated) => void
   onDelete: (id: string) => void
@@ -224,7 +226,7 @@ const createColumns = (props: ThanhToanTableProps): ColumnDef<ThanhToanPopulated
     header: "Phòng",
     cell: ({ row }) => {
       const hoaDonInfo = resolveEntity(props.hoaDonList, row.original.hoaDon);
-      const phongInfo = hoaDonInfo && typeof hoaDonInfo.phong === 'object' ? (hoaDonInfo.phong as any) : resolveEntity(props.hoaDonList, row.original.hoaDon)?.phong;
+      const phongInfo = typeof hoaDonInfo?.phong === 'object' ? hoaDonInfo.phong : resolveEntity(props.phongList, hoaDonInfo?.phong);
       return (
         <div className="flex items-center gap-2 min-w-24">
           <Home className="h-4 w-4 text-muted-foreground" />
@@ -240,7 +242,7 @@ const createColumns = (props: ThanhToanTableProps): ColumnDef<ThanhToanPopulated
     header: "Người đại diện",
     cell: ({ row }) => {
       const hoaDonInfo = resolveEntity(props.hoaDonList, row.original.hoaDon);
-      const khachThueInfo = hoaDonInfo && typeof hoaDonInfo.khachThue === 'object' ? (hoaDonInfo.khachThue as any) : resolveEntity(props.hoaDonList, row.original.hoaDon)?.khachThue;
+      const khachThueInfo = typeof hoaDonInfo?.khachThue === 'object' ? hoaDonInfo.khachThue : resolveEntity(props.khachThueList, hoaDonInfo?.khachThue);
       return (
         <div className="flex items-center gap-2 min-w-32">
           <Users className="h-4 w-4 text-muted-foreground" />

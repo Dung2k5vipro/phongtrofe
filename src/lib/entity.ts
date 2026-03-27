@@ -18,7 +18,7 @@ export function getEntityId(value: EntityLike): string {
 export function resolveById<T extends Record<string, any>>(list: T[], ref: EntityLike): T | undefined {
   const targetId = getEntityId(ref);
   if (!targetId) return undefined;
-  return list.find((item) => getEntityId(item) === targetId);
+  return list?.find((item) => getEntityId(item) === targetId);
 }
 
 function toCamelKey(key: string): string {
@@ -62,7 +62,7 @@ export function resolveEntity<T extends Record<string, any>>(list: T[], ref: Ent
   return resolveById(list, ref);
 }
 
-export function safeText<T>(value: T, fallback = "N/A"): T | string {
+export function safeText<T>(value: T, fallback = "Chưa có thông tin"): T | string {
   if (value === null || value === undefined) return fallback;
   if (typeof value === "string") {
     return value.trim() === "" ? fallback : value;

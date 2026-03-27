@@ -31,27 +31,27 @@ import { getErrorMessage } from '@/lib/api-error';
 
 // Helper functions
 const getPhongName = (phongId: string | Phong, phongList: Phong[]) => {
-  if (!phongId) return 'N/A';
+  if (!phongId) return 'Chưa có thông tin';
   if (typeof phongId === 'object' && phongId.maPhong) {
     return phongId.maPhong;
   }
   if (typeof phongId === 'string') {
     const phong = phongList.find(p => p._id === phongId);
-    return phong?.maPhong || 'N/A';
+    return phong?.maPhong || 'Chưa có thông tin';
   }
-  return 'N/A';
+  return 'Chưa có thông tin';
 };
 
 const getKhachThueName = (khachThueId: string | KhachThue, khachThueList: KhachThue[]) => {
-  if (!khachThueId) return 'N/A';
+  if (!khachThueId) return 'Chưa có thông tin';
   if (typeof khachThueId === 'object' && khachThueId.hoTen) {
     return khachThueId.hoTen;
   }
   if (typeof khachThueId === 'string') {
     const khachThue = khachThueList.find(k => k._id === khachThueId);
-    return khachThue?.hoTen || 'N/A';
+    return khachThue?.hoTen || 'Chưa có thông tin';
   }
-  return 'N/A';
+  return 'Chưa có thông tin';
 };
 
 export default function ThemMoiHoaDonPage() {
@@ -365,18 +365,18 @@ export default function ThemMoiHoaDonPage() {
                               const phongName = phongObj?.maPhong || getPhongName(hopDong.phong as string, phongList);
                               const toaNhaName = phongObj?.toaNha && typeof phongObj.toaNha === 'object' 
                                 ? (phongObj.toaNha as any).tenToaNha 
-                                : 'N/A';
+                                : 'Chưa có thông tin';
                               const nguoiDaiDienName = getKhachThueName(hopDong.nguoiDaiDien, khachThueList);
                               
                               // Xử lý ngày tháng an toàn
                               const formatDate = (date: any) => {
                                 try {
-                                  if (!date) return 'N/A';
+                                  if (!date) return 'Chưa có thông tin';
                                   const dateObj = new Date(date);
-                                  if (isNaN(dateObj.getTime())) return 'N/A';
+                                  if (isNaN(dateObj.getTime())) return 'Chưa có thông tin';
                                   return dateObj.toLocaleDateString('vi-VN');
                                 } catch (error) {
-                                  return 'N/A';
+                                  return 'Chưa có thông tin';
                                 }
                               };
                               
@@ -394,7 +394,7 @@ export default function ThemMoiHoaDonPage() {
                                       <span className="font-semibold text-blue-700">{hopDong.maHopDong}</span>
                                       <span className="text-gray-400">•</span>
                                       <span className="text-sm font-medium text-gray-700">Phòng {phongName}</span>
-                                      {toaNhaName !== 'N/A' && (
+                                      {toaNhaName !== 'Chưa có thông tin' && (
                                         <>
                                           <span className="text-gray-400">•</span>
                                           <span className="text-sm text-gray-600">{toaNhaName}</span>
@@ -404,7 +404,7 @@ export default function ThemMoiHoaDonPage() {
                                     <div className="flex items-center gap-3 text-xs text-gray-500">
                                       <span>👤 {nguoiDaiDienName}</span>
                                       <span className="text-gray-400">•</span>
-                                      <span>📅 {ngayBatDau !== 'N/A' && ngayKetThuc !== 'N/A' ? `${ngayBatDau} → ${ngayKetThuc}` : 'Chưa có thông tin ngày'}</span>
+                                      <span>📅 {ngayBatDau !== 'Chưa có thông tin' && ngayKetThuc !== 'Chưa có thông tin' ? `${ngayBatDau} → ${ngayKetThuc}` : 'Chưa có thông tin ngày'}</span>
                                     </div>
                                   </div>
                                 </SelectItem>

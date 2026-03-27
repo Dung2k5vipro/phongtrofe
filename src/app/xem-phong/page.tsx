@@ -202,7 +202,7 @@ export default function XemPhongPage() {
                   Phòng {selectedPhong.maPhong}
                 </h1>
                 <p className="text-xs md:text-sm text-slate-600">
-                  {typeof selectedPhong.toaNha === 'object' ? (selectedPhong.toaNha as any).tenToaNha : 'N/A'} - Tầng {selectedPhong.tang}
+                  {typeof selectedPhong.toaNha === 'object' ? (selectedPhong.toaNha as any).tenToaNha : 'Chưa cập nhật'} - Tầng {selectedPhong.tang}
                 </p>
               </div>
               <div className="text-left md:text-right">
@@ -323,7 +323,7 @@ export default function XemPhongPage() {
                   <div className="flex items-center justify-between text-xs md:text-sm">
                     <span className="text-gray-600">Tòa nhà:</span>
                     <span className="font-medium truncate ml-2">
-                      {typeof selectedPhong.toaNha === 'object' ? (selectedPhong.toaNha as any).tenToaNha : 'N/A'}
+                      {typeof selectedPhong.toaNha === 'object' ? (selectedPhong.toaNha as any).tenToaNha : 'Chưa cập nhật'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs md:text-sm">
@@ -685,7 +685,7 @@ export default function XemPhongPage() {
                 <CardDescription className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm">
                   <span className="flex items-center">
                     <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                    <span className="truncate">{typeof phong.toaNha === 'object' ? (phong.toaNha as any).tenToaNha : 'N/A'}</span>
+                    <span className="truncate">{typeof phong.toaNha === 'object' ? (phong.toaNha as any).tenToaNha : 'Chưa cập nhật'}</span>
                   </span>
                   <span className="flex items-center">
                     <Square className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />

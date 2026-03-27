@@ -57,6 +57,9 @@ import { hoaDonService } from '@/services/hoaDonService';
 import { getErrorMessage } from '@/lib/api-error';
 import { ThanhToanDataTable } from './table';
 import { getEntityId, resolveEntity, safeText } from '@/lib/entity';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { Phong, KhachThue } from '@/types';
 
 // Type cho ThanhToan đã được populate
 type ThanhToanPopulated = Omit<ThanhToan, 'hoaDon'> & {
@@ -67,10 +70,14 @@ export default function ThanhToanPage() {
   const cache = useCache<{ 
     thanhToanList: ThanhToanPopulated[];
     hoaDonList: HoaDon[];
+    phongList: Phong[];
+    khachThueList: KhachThue[];
   }>({ key: 'thanh-toan-data', duration: 300000 });
   
   const [thanhToanList, setThanhToanList] = useState<ThanhToanPopulated[]>([]);
   const [hoaDonList, setHoaDonList] = useState<HoaDon[]>([]);
+  const [phongList, setPhongList] = useState<Phong[]>([]);
+  const [khachThueList, setKhachThueList] = useState<KhachThue[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
@@ -95,25 +102,35 @@ export default function ThanhToanPage() {
         if (cachedData) {
           setThanhToanList(cachedData.thanhToanList || []);
           setHoaDonList(cachedData.hoaDonList || []);
+          setPhongList(cachedData.phongList || []);
+          setKhachThueList(cachedData.khachThueList || []);
           setLoading(false);
           return;
         }
       }
 
-      const [thanhToanResult, hoaDonResult] = await Promise.all([
+      const [thanhToanResult, hoaDonResult, phongResult, khachThueResult] = await Promise.all([
         thanhToanService.getAllThanhToan({ limit: 100 }),
         hoaDonService.getAllHoaDon({ limit: 100 }),
+        phongService.getAllPhong({ limit: 100 }),
+        khachThueService.getAllKhachThue({ limit: 100 }),
       ]);
 
       const thanhToans = thanhToanResult.success && thanhToanResult.data ? thanhToanResult.data : [];
       const hoaDons = hoaDonResult.success && hoaDonResult.data ? hoaDonResult.data : [];
+      const phongs = phongResult.success && phongResult.data ? phongResult.data : [];
+      const khachThues = khachThueResult.success && khachThueResult.data ? khachThueResult.data : [];
 
       setThanhToanList(thanhToans);
       setHoaDonList(hoaDons);
+      setPhongList(phongs);
+      setKhachThueList(khachThues);
 
       cache.setCache({
         thanhToanList: thanhToans,
         hoaDonList: hoaDons,
+        phongList: phongs,
+        khachThueList: khachThues,
       });
     } catch (error) {
       toast.error(getErrorMessage(error, 'Khong the tai du lieu thanh toan'));
@@ -368,6 +385,8 @@ export default function ThanhToanPage() {
             onMethodChange={setMethodFilter}
             dateFilter={dateFilter}
             onDateChange={setDateFilter}
+            phongList={phongList}
+            khachThueList={khachThueList}
           />
         </CardContent>
       </Card>
@@ -420,8 +439,8 @@ export default function ThanhToanPage() {
         <div className="space-y-3">
           {filteredThanhToan.map((thanhToan) => {
             const hoaDonInfo = resolveEntity(hoaDonList, thanhToan.hoaDon) as HoaDon | undefined;
-            const phongInfo = hoaDonInfo?.phong;
-            const khachThueInfo = hoaDonInfo?.khachThue;
+            const phongInfo = typeof hoaDonInfo?.phong === 'object' ? hoaDonInfo.phong : resolveEntity(phongList, hoaDonInfo?.phong);
+            const khachThueInfo = typeof hoaDonInfo?.khachThue === 'object' ? hoaDonInfo.khachThue : resolveEntity(khachThueList, hoaDonInfo?.khachThue);
             
             return (
               <Card key={thanhToan._id} className="p-4">

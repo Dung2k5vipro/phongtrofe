@@ -87,6 +87,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { SuCo, Phong, KhachThue } from '@/types'
+import { resolveEntity, safeText } from "@/lib/entity"
 
 // Helper functions
 const getStatusBadge = (status: string) => {
@@ -191,19 +192,13 @@ type SuCoTableProps = {
 }
 
 const getPhongName = (phong: string | { maPhong: string }, phongList: Phong[]) => {
-  if (typeof phong === 'string') {
-    const phongObj = phongList.find(p => p._id === phong)
-    return phongObj?.maPhong || 'N/A'
-  }
-  return phong?.maPhong || 'N/A'
+  const phongObj = resolveEntity(phongList, phong as any)
+  return safeText(phongObj?.maPhong)
 }
 
 const getKhachThueName = (khachThue: string | { hoTen: string }, khachThueList: KhachThue[]) => {
-  if (typeof khachThue === 'string') {
-    const khachThueObj = khachThueList.find(k => k._id === khachThue)
-    return khachThueObj?.hoTen || 'N/A'
-  }
-  return khachThue?.hoTen || 'N/A'
+  const khachThueObj = resolveEntity(khachThueList, khachThue as any)
+  return safeText(khachThueObj?.hoTen)
 }
 
 const createColumns = (props: SuCoTableProps): ColumnDef<SuCo>[] => [

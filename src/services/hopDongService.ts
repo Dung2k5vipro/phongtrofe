@@ -23,7 +23,7 @@ function mapHopDongFromBackend(raw: any): HopDong {
     phongValue.toaNha = isObjectEntity(toaNhaRaw) ? normalizeEntity(toaNhaRaw) : toaNhaRaw;
   }
 
-  const khachThueRaw = camel.khachThueId ?? camel.khachThue ?? [];
+  const khachThueRaw = camel.khachThueId ?? camel.khachThueIds ?? camel.khachThue ?? camel.khachThues ?? [];
 
   return {
     ...camel,

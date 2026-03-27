@@ -52,6 +52,9 @@ import { hoaDonService } from '@/services/hoaDonService';
 import { thanhToanService } from '@/services/thanhToanService';
 import { getErrorMessage } from '@/lib/api-error';
 import { resolveEntity, safeText } from '@/lib/entity';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { hopDongService } from '@/services/hopDongService';
 
 // Helper functions for form and dialogs
 const getPhongName = (phongId: string | Phong, phongList: Phong[]) => {
@@ -130,17 +133,19 @@ export default function HoaDonPage() {
         }
       }
 
-      const [hoaDonResult, formDataResult] = await Promise.all([
+      const [hoaDonResult, phongResult, khachThueResult, hopDongResult] = await Promise.all([
         hoaDonService.getAllHoaDon({ limit: 100 }),
-        hoaDonService.getHoaDonFormData(),
+        phongService.getAllPhong({ limit: 100 }),
+        khachThueService.getAllKhachThue({ limit: 100 }),
+        hopDongService.getAllHopDong({ limit: 100 })
       ]);
 
       const hoaDons = hoaDonResult.success && hoaDonResult.data ? hoaDonResult.data : [];
       setHoaDonList(hoaDons);
 
-      const hopDongs = formDataResult.success && formDataResult.data ? formDataResult.data.hopDongList || [] : [];
-      const phongs = formDataResult.success && formDataResult.data ? formDataResult.data.phongList || [] : [];
-      const khachThues = formDataResult.success && formDataResult.data ? formDataResult.data.khachThueList || [] : [];
+      const phongs = phongResult.success && phongResult.data ? phongResult.data : [];
+      const khachThues = khachThueResult.success && khachThueResult.data ? khachThueResult.data : [];
+      const hopDongs = hopDongResult.success && hopDongResult.data ? hopDongResult.data : [];
 
       setHopDongList(hopDongs);
       setPhongList(phongs);
