@@ -50,6 +50,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SuCo, Phong, KhachThue, HopDong } from '@/types';
+import { suCoService } from '@/services/suCoService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { hopDongService } from '@/services/hopDongService';
 import { SuCoImageUpload } from '@/components/ui/su-co-image-upload';
 import { DeleteConfirmPopover } from '@/components/ui/delete-confirm-popover';
 import { SuCoDataTable } from './table';
@@ -98,28 +102,16 @@ export default function SuCoPage() {
         }
       }
       
-      // Fetch sự cố từ API
-      const suCoResponse = await fetch('/api/su-co');
-      const suCoData = await suCoResponse.json();
-      const suCos = suCoData.success ? suCoData.data : [];
+      const [suCos, phongs, khachThues, hopDongs] = await Promise.all([
+        suCoService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll(),
+        hopDongService.getAll()
+      ]);
+
       setSuCoList(suCos);
-
-      // Fetch phòng từ API
-      const phongResponse = await fetch('/api/phong');
-      const phongData = await phongResponse.json();
-      const phongs = phongData.success ? phongData.data : [];
       setPhongList(phongs);
-
-      // Fetch khách thuê từ API
-      const khachThueResponse = await fetch('/api/khach-thue');
-      const khachThueData = await khachThueResponse.json();
-      const khachThues = khachThueData.success ? khachThueData.data : [];
       setKhachThueList(khachThues);
-
-      // Fetch hợp đồng từ API
-      const hopDongResponse = await fetch('/api/hop-dong');
-      const hopDongData = await hopDongResponse.json();
-      const hopDongs = hopDongData.success ? hopDongData.data : [];
       setHopDongList(hopDongs);
       
       cache.setCache({
@@ -226,55 +218,29 @@ export default function SuCoPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/su-co/${id}`, {
-        method: 'DELETE',
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        cache.clearCache();
-        setSuCoList(prev => prev.filter(suCo => suCo._id !== id));
-        toast.success('Xóa sự cố thành công');
-      } else {
-        console.error('Error deleting su co:', result.message);
-        toast.error('Có lỗi xảy ra: ' + result.message);
-      }
-    } catch (error) {
+      await suCoService.delete(id);
+      cache.clearCache();
+      setSuCoList(prev => prev.filter(suCo => suCo._id !== id));
+      toast.success('Xóa sự cố thành công');
+    } catch (error: any) {
       console.error('Error deleting su co:', error);
-      toast.error('Có lỗi xảy ra khi xóa sự cố');
+      toast.error(error.message || 'Có lỗi xảy ra khi xóa sự cố');
     }
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/su-co/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          trangThai: newStatus,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setSuCoList(prev => prev.map(suCo => {
-          if (suCo._id === id) {
-            return result.data;
-          }
-          return suCo;
-        }));
-        toast.success('Cập nhật trạng thái thành công');
-      } else {
-        console.error('Error updating status:', result.message);
-        toast.error('Có lỗi xảy ra: ' + result.message);
-      }
-    } catch (error) {
+      const result = await suCoService.update(id, { trangThai: newStatus as any });
+      setSuCoList(prev => prev.map(suCo => {
+        if (suCo._id === id) {
+          return result;
+        }
+        return suCo;
+      }));
+      toast.success('Cập nhật trạng thái thành công');
+    } catch (error: any) {
       console.error('Error updating status:', error);
-      toast.error('Có lỗi xảy ra khi cập nhật trạng thái');
+      toast.error(error.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
     }
   };
 
@@ -624,26 +590,13 @@ function SuCoForm({
         ngayBaoCao: suCo ? suCo.ngayBaoCao : new Date().toISOString(),
       };
 
-      const url = suCo ? `/api/su-co/${suCo._id}` : '/api/su-co';
-      const method = suCo ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(suCo ? 'Cập nhật sự cố thành công' : 'Báo cáo sự cố thành công');
-        onSuccess();
+      if (suCo) {
+        await suCoService.update(suCo._id as string, submitData);
       } else {
-        console.error('Error submitting form:', result.message);
-        toast.error('Có lỗi xảy ra: ' + result.message);
+        await suCoService.create(submitData);
       }
+      toast.success(suCo ? 'Cập nhật sự cố thành công' : 'Báo cáo sự cố thành công');
+      onSuccess();
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Có lỗi xảy ra khi gửi form');

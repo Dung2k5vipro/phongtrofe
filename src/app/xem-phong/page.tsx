@@ -29,6 +29,8 @@ import { Phong, ToaNha } from '@/types';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { ImageCarousel } from '@/components/ui/image-carousel';
+import { phongService } from '@/services/phongService';
+import { toaNhaService } from '@/services/toaNhaService';
 
 export default function XemPhongPage() {
   const [phongList, setPhongList] = useState<Phong[]>([]);
@@ -55,18 +57,12 @@ export default function XemPhongPage() {
 
   const fetchPhong = async () => {
     try {
-      const params = new URLSearchParams();
-      params.append('limit', '100');
-      if (selectedToaNha && selectedToaNha !== 'all') params.append('toaNha', selectedToaNha);
-      if (selectedTrangThai && selectedTrangThai !== 'all') params.append('trangThai', selectedTrangThai);
+      const filters: any = {};
+      if (selectedToaNha && selectedToaNha !== 'all') filters.toaNha_id = selectedToaNha;
+      if (selectedTrangThai && selectedTrangThai !== 'all') filters.trangThai = selectedTrangThai;
       
-      const response = await fetch(`/api/phong-public?${params.toString()}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setPhongList(result.data);
-        }
-      }
+      const data = await phongService.getAll(filters);
+      setPhongList(data || []);
     } catch (error) {
       console.error('Error fetching phong:', error);
       toast.error('Có lỗi xảy ra khi tải danh sách phòng');
@@ -77,13 +73,8 @@ export default function XemPhongPage() {
 
   const fetchToaNha = async () => {
     try {
-      const response = await fetch('/api/toa-nha-public');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setToaNhaList(result.data);
-        }
-      }
+      const data = await toaNhaService.getAll();
+      setToaNhaList(data || []);
     } catch (error) {
       console.error('Error fetching toa nha:', error);
     }

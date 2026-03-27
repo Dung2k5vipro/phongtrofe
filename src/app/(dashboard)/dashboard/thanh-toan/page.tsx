@@ -34,12 +34,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { DeleteConfirmPopover } from '@/components/ui/delete-confirm-popover';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  CreditCard, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  CreditCard,
   Calendar,
   Users,
   Eye,
@@ -53,6 +53,8 @@ import {
 import { ThanhToan, HoaDon } from '@/types';
 import { toast } from 'sonner';
 import { ThanhToanDataTable } from './table';
+import { thanhToanService } from '@/services/thanhToanService';
+import { hoaDonService } from '@/services/hoaDonService';
 
 // Type cho ThanhToan đã được populate
 type ThanhToanPopulated = Omit<ThanhToan, 'hoaDon'> & {
@@ -60,11 +62,11 @@ type ThanhToanPopulated = Omit<ThanhToan, 'hoaDon'> & {
 };
 
 export default function ThanhToanPage() {
-  const cache = useCache<{ 
+  const cache = useCache<{
     thanhToanList: ThanhToanPopulated[];
     hoaDonList: HoaDon[];
   }>({ key: 'thanh-toan-data', duration: 300000 });
-  
+
   const [thanhToanList, setThanhToanList] = useState<ThanhToanPopulated[]>([]);
   const [hoaDonList, setHoaDonList] = useState<HoaDon[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export default function ThanhToanPage() {
   const fetchData = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      
+
       if (!forceRefresh) {
         const cachedData = cache.getCache();
         if (cachedData) {
@@ -95,19 +97,15 @@ export default function ThanhToanPage() {
           return;
         }
       }
-      
-      // Fetch thanh toan từ API
-      const thanhToanResponse = await fetch('/api/thanh-toan');
-      const thanhToanData = thanhToanResponse.ok ? await thanhToanResponse.json() : { data: [] };
-      const thanhToans = thanhToanData.data || [];
-      setThanhToanList(thanhToans);
 
-      // Fetch hoa don từ API để hiển thị thông tin
-      const hoaDonResponse = await fetch('/api/hoa-don');
-      const hoaDonData = hoaDonResponse.ok ? await hoaDonResponse.json() : { data: [] };
-      const hoaDons = hoaDonData.data || [];
-      setHoaDonList(hoaDons);
-      
+      const [thanhToans, hoaDons] = await Promise.all([
+        thanhToanService.getAll(),
+        hoaDonService.getAll()
+      ]);
+
+      setThanhToanList(thanhToans || []);
+      setHoaDonList(hoaDons || []);
+
       cache.setCache({
         thanhToanList: thanhToans,
         hoaDonList: hoaDons,
@@ -141,13 +139,13 @@ export default function ThanhToanPage() {
 
   const filteredThanhToan = thanhToanList.filter(thanhToan => {
     const matchesSearch = thanhToan.ghiChu?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         thanhToan.thongTinChuyenKhoan?.soGiaoDich?.toLowerCase().includes(searchTerm.toLowerCase());
+      thanhToan.thongTinChuyenKhoan?.soGiaoDich?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesMethod = methodFilter === 'all' || thanhToan.phuongThuc === methodFilter;
-    const matchesDate = dateFilter === 'all' || 
-                       (dateFilter === 'today' && isToday(thanhToan.ngayThanhToan)) ||
-                       (dateFilter === 'week' && isThisWeek(thanhToan.ngayThanhToan)) ||
-                       (dateFilter === 'month' && isThisMonth(thanhToan.ngayThanhToan));
-    
+    const matchesDate = dateFilter === 'all' ||
+      (dateFilter === 'today' && isToday(thanhToan.ngayThanhToan)) ||
+      (dateFilter === 'week' && isThisWeek(thanhToan.ngayThanhToan)) ||
+      (dateFilter === 'month' && isThisMonth(thanhToan.ngayThanhToan));
+
     return matchesSearch && matchesMethod && matchesDate;
   });
 
@@ -166,20 +164,20 @@ export default function ThanhToanPage() {
 
   const getHoaDonInfo = (hoaDon: string | any) => {
     console.log('getHoaDonInfo called with:', hoaDon, 'type:', typeof hoaDon);
-    
+
     // Nếu hoaDon là object (đã được populate), lấy maHoaDon trực tiếp
     if (typeof hoaDon === 'object' && hoaDon?.maHoaDon) {
       console.log('Returning populated maHoaDon:', hoaDon.maHoaDon);
       return hoaDon.maHoaDon;
     }
-    
+
     // Nếu hoaDon là string (ID), tìm trong hoaDonList
     if (typeof hoaDon === 'string') {
       const hoaDonItem = hoaDonList.find(h => h._id === hoaDon);
       console.log('Found hoaDon in list:', hoaDonItem?.maHoaDon);
       return hoaDonItem?.maHoaDon || 'Không xác định';
     }
-    
+
     console.log('Returning default: Không xác định');
     return 'Không xác định';
   };
@@ -214,21 +212,14 @@ export default function ThanhToanPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/thanh-toan/${id}`, {
-        method: 'DELETE',
-      });
+      await thanhToanService.delete(id);
 
-      if (response.ok) {
-        cache.clearCache();
-        setThanhToanList(prev => prev.filter(thanhToan => thanhToan._id !== id));
-        toast.success('Xóa thanh toán thành công');
-      } else{
-        const errorData = await response.json();
-        toast.error('Có lỗi xảy ra: ' + (errorData.message || 'Không thể xóa thanh toán'));
-      }
-    } catch (error) {
+      cache.clearCache();
+      setThanhToanList(prev => prev.filter(thanhToan => thanhToan._id !== id));
+      toast.success('Xóa thanh toán thành công');
+    } catch (error: any) {
       console.error('Error deleting thanh toan:', error);
-      toast.error('Có lỗi xảy ra khi xóa thanh toán');
+      toast.error(error.message || 'Có lỗi xảy ra khi xóa thanh toán');
     }
   };
 
@@ -258,7 +249,7 @@ export default function ThanhToanPage() {
           <p className="text-xs md:text-sm text-gray-600">Danh sách tất cả giao dịch thanh toán</p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
@@ -276,28 +267,28 @@ export default function ThanhToanPage() {
                 <span className="sm:hidden">Thêm</span>
               </Button>
             </DialogTrigger>
-          <DialogContent className="w-[95vw] md:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingThanhToan ? 'Chỉnh sửa thanh toán' : 'Thêm thanh toán mới'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingThanhToan ? 'Cập nhật thông tin thanh toán' : 'Nhập thông tin thanh toán mới'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <ThanhToanForm 
-              thanhToan={editingThanhToan}
-              hoaDonList={hoaDonList}
-              onClose={() => setIsDialogOpen(false)}
-              onSuccess={() => {
-                cache.clearCache();
-                setIsDialogOpen(false);
-                fetchData(true);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+            <DialogContent className="w-[95vw] md:w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingThanhToan ? 'Chỉnh sửa thanh toán' : 'Thêm thanh toán mới'}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingThanhToan ? 'Cập nhật thông tin thanh toán' : 'Nhập thông tin thanh toán mới'}
+                </DialogDescription>
+              </DialogHeader>
+
+              <ThanhToanForm
+                thanhToan={editingThanhToan}
+                hoaDonList={hoaDonList}
+                onClose={() => setIsDialogOpen(false)}
+                onSuccess={() => {
+                  cache.clearCache();
+                  setIsDialogOpen(false);
+                  fetchData(true);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -381,7 +372,7 @@ export default function ThanhToanPage() {
           <h2 className="text-lg font-semibold">Danh sách thanh toán</h2>
           <span className="text-sm text-gray-500">{filteredThanhToan.length} giao dịch</span>
         </div>
-        
+
         {/* Mobile Filters */}
         <div className="space-y-2 mb-4">
           <div className="relative">
@@ -425,7 +416,7 @@ export default function ThanhToanPage() {
             const hoaDonInfo = typeof thanhToan.hoaDon === 'object' ? (thanhToan.hoaDon as HoaDon) : null;
             const phongInfo = hoaDonInfo && typeof hoaDonInfo.phong === 'object' ? (hoaDonInfo.phong as any) : null;
             const khachThueInfo = hoaDonInfo && typeof hoaDonInfo.khachThue === 'object' ? (hoaDonInfo.khachThue as any) : null;
-            
+
             return (
               <Card key={thanhToan._id} className="p-4">
                 <div className="space-y-3">
@@ -503,9 +494,11 @@ export default function ThanhToanPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleEdit(thanhToan)}
+                      onClick={() => {
+                        toast.info('Không thể sửa thanh toán đã tạo. Vui lòng xóa và thêm lại.');
+                      }}
                     >
-                      <Edit className="h-3.5 w-3.5" />
+                      <Eye className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="outline"
@@ -534,19 +527,19 @@ export default function ThanhToanPage() {
 }
 
 // Form component for adding/editing thanh toan
-function ThanhToanForm({ 
-  thanhToan, 
+function ThanhToanForm({
+  thanhToan,
   hoaDonList,
-  onClose, 
-  onSuccess 
-}: { 
+  onClose,
+  onSuccess
+}: {
   thanhToan: ThanhToanPopulated | null;
   hoaDonList: HoaDon[];
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [formData, setFormData] = useState({
-    hoaDon: thanhToan?.hoaDon ? 
+    hoaDon: thanhToan?.hoaDon ?
       (typeof thanhToan.hoaDon === 'string' ? thanhToan.hoaDon : (thanhToan.hoaDon as HoaDon)._id || '') : '',
     soTien: thanhToan?.soTien || 0,
     phuongThuc: thanhToan?.phuongThuc || 'tienMat',
@@ -587,46 +580,32 @@ function ThanhToanForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const requestData = {
-        hoaDonId: formData.hoaDon,
+        hoaDon: formData.hoaDon, // Sử dụng hoaDon thay vì hoaDonId để khớp với interface nếu có thể, hoặc giữ nguyên và cast sang any
         soTien: formData.soTien,
         phuongThuc: formData.phuongThuc,
         thongTinChuyenKhoan: formData.phuongThuc === 'chuyenKhoan' ? {
           nganHang: formData.nganHang,
           soGiaoDich: formData.soGiaoDich
         } : undefined,
-        ngayThanhToan: formData.ngayThanhToan,
+        ngayThanhToan: new Date(formData.ngayThanhToan),
         ghiChu: formData.ghiChu,
         anhBienLai: formData.anhBienLai
       };
-      
-      console.log('Submitting:', requestData);
-      
-      const url = thanhToan ? `/api/thanh-toan/${thanhToan._id}` : '/api/thanh-toan';
-      const method = thanhToan ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Success:', result);
-        onSuccess();
+      console.log('Submitting:', requestData);
+
+      if (thanhToan) {
+        throw new Error('Chỉnh sửa thanh toán không được hỗ trợ. Vui lòng xóa và tạo lại.');
       } else {
-        const errorData = await response.json();
-        console.error('Error:', errorData);
-        alert('Có lỗi xảy ra: ' + (errorData.message || 'Không thể lưu dữ liệu'));
+        await thanhToanService.create({ ...requestData, hoaDonId: formData.hoaDon } as any);
       }
-    } catch (error) {
+      onSuccess();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      alert('Có lỗi xảy ra khi gửi dữ liệu');
+      alert(error.message || 'Có lỗi xảy ra khi gửi dữ liệu');
     }
   };
 
@@ -687,7 +666,7 @@ function ThanhToanForm({
               className="text-sm"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="soGiaoDich" className="text-xs md:text-sm">Số giao dịch</Label>
             <Input

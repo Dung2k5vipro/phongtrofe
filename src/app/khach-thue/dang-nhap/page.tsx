@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Phone, Lock, LogIn, Home } from 'lucide-react';
 import { toast } from 'sonner';
+import { khachThueService } from '@/services/khachThueService';
 
 export default function KhachThueDangNhapPage() {
   const router = useRouter();
@@ -22,29 +23,22 @@ export default function KhachThueDangNhapPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/khach-thue/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      // Use khachThueService instead of direct fetch
+      const result = await khachThueService.login(formData);
 
-      const result = await response.json();
-
-      if (result.success) {
+      if (result) {
         // Lưu token vào localStorage
-        localStorage.setItem('khachThueToken', result.data.token);
-        localStorage.setItem('khachThueData', JSON.stringify(result.data.khachThue));
+        localStorage.setItem('khachThueToken', result.token);
+        localStorage.setItem('khachThueData', JSON.stringify(result.khachThue));
         
         toast.success('Đăng nhập thành công!');
         router.push('/khach-thue/dashboard');
       } else {
-        toast.error(result.message || 'Đăng nhập thất bại');
+        toast.error('Đăng nhập thất bại, không có dữ liệu trả về');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error logging in:', error);
-      toast.error('Có lỗi xảy ra khi đăng nhập');
+      toast.error(error.message || 'Có lỗi xảy ra khi đăng nhập');
     } finally {
       setIsLoading(false);
     }

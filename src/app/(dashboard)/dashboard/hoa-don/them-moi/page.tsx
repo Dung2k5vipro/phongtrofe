@@ -25,6 +25,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { HopDong, Phong, KhachThue } from '@/types';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { hoaDonService } from '@/services/hoaDonService';
 import { toast } from 'sonner';
 
 // Helper functions
@@ -112,18 +116,17 @@ export default function ThemMoiHoaDonPage() {
 
   const fetchFormData = async () => {
     try {
-      const formDataResponse = await fetch('/api/hoa-don/form-data');
-      if (formDataResponse.ok) {
-        const formData = await formDataResponse.json();
-        console.log('Form data loaded:', formData.data);
-        setHopDongList(formData.data.hopDongList || []);
-        setPhongList(formData.data.phongList || []);
-        setKhachThueList(formData.data.khachThueList || []);
-      } else {
-        console.error('Failed to load form data:', formDataResponse.status);
-      }
+      const [hopDongs, phongs, khachThues] = await Promise.all([
+        hopDongService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
+      setHopDongList(hopDongs || []);
+      setPhongList(phongs || []);
+      setKhachThueList(khachThues || []);
     } catch (error) {
       console.error('Error fetching form data:', error);
+      toast.error('Không thể tải dữ liệu biểu mẫu');
     } finally {
       setLoading(false);
     }
@@ -131,18 +134,15 @@ export default function ThemMoiHoaDonPage() {
 
   const fetchLatestElectricityReading = async (hopDongId: string, thang: number, nam: number) => {
     try {
-      const response = await fetch(`/api/hoa-don/latest-reading?hopDong=${hopDongId}&thang=${thang}&nam=${nam}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          console.log('Latest electricity reading:', data.data);
-          setFormData(prev => ({
-            ...prev,
-            chiSoDienBanDau: data.data.chiSoDienBanDau || 0,
-            chiSoNuocBanDau: data.data.chiSoNuocBanDau || 0,
-          }));
-          setReadingSource(data.data);
-        }
+      const data = await hoaDonService.getLatestReading(hopDongId, thang, nam);
+      if (data) {
+        console.log('Latest electricity reading:', data);
+        setFormData(prev => ({
+          ...prev,
+          chiSoDienBanDau: data.chiSoDienBanDau || 0,
+          chiSoNuocBanDau: data.chiSoNuocBanDau || 0,
+        }));
+        setReadingSource(data);
       }
     } catch (error) {
       console.error('Error fetching latest electricity reading:', error);
@@ -245,28 +245,16 @@ export default function ThemMoiHoaDonPage() {
       
       console.log('Submitting form data:', requestData);
       
-      const response = await fetch('/api/hoa-don', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        // Xóa cache
-        sessionStorage.removeItem('hoa-don-data');
-        toast.success(result.message || 'Hóa đơn đã được tạo thành công');
-        router.replace('/dashboard/hoa-don');
-        router.refresh();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
+      await hoaDonService.create(requestData);
+      
+      // Xóa cache
+      sessionStorage.removeItem('hoa-don-data');
+      toast.success('Hóa đơn đã được tạo thành công');
+      router.replace('/dashboard/hoa-don');
+      router.refresh();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi dữ liệu');
+      toast.error(error.message || 'Có lỗi xảy ra khi gửi dữ liệu');
     } finally {
       setSubmitting(false);
     }

@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 import { HopDong, Phong, KhachThue } from '@/types';
 import { toast } from 'sonner';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -105,22 +108,21 @@ export default function ThemMoiHopDongPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch phong data
-      const phongResponse = await fetch('/api/phong?limit=100');
-      if (phongResponse.ok) {
-        const phongData = await phongResponse.json();
+      const [phongs, khachThues] = await Promise.all([
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
+
+      if (phongs) {
         // Lọc phòng trống và đã đặt
-        const availablePhong = (phongData.data || []).filter((phong: Phong) => 
+        const availablePhong = phongs.filter((phong: Phong) => 
           phong.trangThai === 'trong' || phong.trangThai === 'daDat'
         );
         setPhongList(availablePhong);
       }
 
-      // Fetch khach thue data
-      const khachThueResponse = await fetch('/api/khach-thue?limit=100');
-      if (khachThueResponse.ok) {
-        const khachThueData = await khachThueResponse.json();
-        setKhachThueList(khachThueData.data || []);
+      if (khachThues) {
+        setKhachThueList(khachThues);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -200,34 +202,20 @@ export default function ThemMoiHopDongPage() {
     setSubmitting(true);
     
     try {
-      const response = await fetch('/api/hop-dong', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          ngayBatDau: new Date(formData.ngayBatDau).toISOString(),
-          ngayKetThuc: new Date(formData.ngayKetThuc).toISOString(),
-        }),
+      await hopDongService.create({
+        ...formData,
+        ngayBatDau: new Date(formData.ngayBatDau),
+        ngayKetThuc: new Date(formData.ngayKetThuc),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        // Xóa cache để force refresh data
-        sessionStorage.removeItem('hop-dong-data');
-        toast.success(result.message || 'Đã tạo hợp đồng thành công');
-        // Sử dụng replace để không tạo history entry mới
-        // và refresh để cập nhật dữ liệu server-side
-        router.replace('/dashboard/hop-dong');
-        router.refresh();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
+      // Xóa cache để force refresh data
+      sessionStorage.removeItem('hop-dong-data');
+      toast.success('Đã tạo hợp đồng thành công');
+      router.replace('/dashboard/hop-dong');
+      router.refresh();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi lưu hợp đồng');
+      toast.error(error.message || 'Có lỗi xảy ra khi lưu hợp đồng');
     } finally {
       setSubmitting(false);
     }

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useCache } from '@/hooks/use-cache';
+import { phongService } from '@/services/phongService';
+import { toaNhaService } from '@/services/toaNhaService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -98,31 +100,17 @@ export default function PhongPage() {
         }
       }
       
-      const params = new URLSearchParams();
-      if (selectedToaNha && selectedToaNha !== 'all') params.append('toaNha', selectedToaNha);
-      if (selectedTrangThai && selectedTrangThai !== 'all') params.append('trangThai', selectedTrangThai);
-      
+      const filterObj: any = {};
+      if (selectedToaNha && selectedToaNha !== 'all') filterObj.toaNha_id = selectedToaNha;
+      if (selectedTrangThai && selectedTrangThai !== 'all') filterObj.trangThai = selectedTrangThai;
+
       // Fetch phong
-      const response = await fetch(`/api/phong?${params.toString()}&limit=100`);
-      let phongData: Phong[] = [];
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          phongData = result.data;
-          setPhongList(phongData);
-        }
-      }
+      const phongData = await phongService.getAll(filterObj);
+      setPhongList(phongData);
       
       // Fetch toa nha
-      const toaNhaResponse = await fetch('/api/toa-nha');
-      let toaNhaData: ToaNha[] = [];
-      if (toaNhaResponse.ok) {
-        const toaNhaResult = await toaNhaResponse.json();
-        if (toaNhaResult.success) {
-          toaNhaData = toaNhaResult.data;
-          setToaNhaList(toaNhaData);
-        }
-      }
+      const toaNhaData = await toaNhaService.getAll();
+      setToaNhaList(toaNhaData);
       
       // Lưu cache với data mới
       if (phongData.length > 0 || toaNhaData.length > 0) {
@@ -132,7 +120,7 @@ export default function PhongPage() {
         });
       }
     } catch (error) {
-      console.error('Error fetching phong:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -140,13 +128,8 @@ export default function PhongPage() {
 
   const fetchToaNha = async () => {
     try {
-      const response = await fetch('/api/toa-nha');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setToaNhaList(result.data);
-        }
-      }
+      const toaNhaData = await toaNhaService.getAll();
+      setToaNhaList(toaNhaData);
     } catch (error) {
       console.error('Error fetching toa nha:', error);
     }
@@ -178,26 +161,13 @@ export default function PhongPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/phong/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          cache.clearCache();
-          setPhongList(prev => prev.filter(phong => phong._id !== id));
-          toast.success('Xóa phòng thành công!');
-        } else {
-          toast.error(result.message || 'Có lỗi xảy ra khi xóa phòng');
-        }
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Có lỗi xảy ra khi xóa phòng');
-      }
-    } catch (error) {
+      await phongService.delete(id);
+      cache.clearCache();
+      setPhongList(prev => prev.filter(phong => phong._id !== id));
+      toast.success('Xóa phòng thành công!');
+    } catch (error: any) {
       console.error('Error deleting phong:', error);
-      toast.error('Có lỗi xảy ra khi xóa phòng');
+      toast.error(error.message || 'Có lỗi xảy ra khi xóa phòng');
     }
   };
 
@@ -786,31 +756,15 @@ function PhongForm({
     e.preventDefault();
     
     try {
-      const url = phong ? `/api/phong/${phong._id}` : '/api/phong';
-      const method = phong ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          onSuccess();
-        } else {
-          toast.error(result.message || 'Có lỗi xảy ra');
-        }
+      if (phong) {
+        await phongService.update(phong._id as string, formData);
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Có lỗi xảy ra');
+        await phongService.create(formData);
       }
-    } catch (error) {
+      onSuccess();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi form');
+      toast.error(error.message || 'Có lỗi xảy ra khi lưu phòng');
     }
   };
 

@@ -19,6 +19,8 @@ import { HoaDon, ThanhToan, HopDong, Phong, KhachThue } from '@/types';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { hoaDonService } from '@/services/hoaDonService';
+import { thanhToanService } from '@/services/thanhToanService';
 
 // Helper functions
 const getPhongName = (phongId: string | Phong) => {
@@ -90,16 +92,15 @@ export default function PublicInvoicePage() {
   const fetchInvoiceData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/hoa-don-public/${hoaDonId}`);
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setHoaDon(result.data.hoaDon);
-          setThanhToanList(result.data.thanhToanList || []);
-        } else {
-          setError(result.message || 'Không thể tải thông tin hóa đơn');
-        }
+      const hoaDonData = await hoaDonService.getById(hoaDonId);
+      
+      if (hoaDonData) {
+        setHoaDon(hoaDonData);
+        
+        // Fetch thanh toan list associated with this invoice
+        const paymentList = await thanhToanService.getAll({ hoaDon_id: hoaDonId });
+        setThanhToanList(paymentList || []);
       } else {
         setError('Không thể tải thông tin hóa đơn');
       }

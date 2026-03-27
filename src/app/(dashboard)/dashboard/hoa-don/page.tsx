@@ -48,6 +48,11 @@ import { HoaDon, HopDong, Phong, KhachThue } from '@/types';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { hoaDonService } from '@/services/hoaDonService';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { thanhToanService } from '@/services/thanhToanService';
 
 // Helper functions for form and dialogs
 const getPhongName = (phongId: string | Phong, phongList: Phong[]) => {
@@ -123,7 +128,6 @@ export default function HoaDonPage() {
     try {
       setLoading(true);
       
-      // Thử load từ cache trước (nếu không force refresh)
       if (!forceRefresh) {
         const cachedData = cache.getCache();
         if (cachedData) {
@@ -136,35 +140,25 @@ export default function HoaDonPage() {
         }
       }
       
-      // Fetch hóa đơn từ API
-      const hoaDonResponse = await fetch('/api/hoa-don');
-      const hoaDonData = hoaDonResponse.ok ? await hoaDonResponse.json() : { data: [] };
-      const hoaDons = hoaDonData.data || [];
-      setHoaDonList(hoaDons);
+      const [hoaDons, hopDongs, phongs, khachThues] = await Promise.all([
+        hoaDonService.getAll(),
+        hopDongService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
 
-      // Fetch form data (hop dong, phong, khach thue) từ API
-      const formDataResponse = await fetch('/api/hoa-don/form-data');
-      if (formDataResponse.ok) {
-        const formData = await formDataResponse.json();
-        console.log('Form data loaded:', formData.data);
-        const hopDongs = formData.data.hopDongList || [];
-        const phongs = formData.data.phongList || [];
-        const khachThues = formData.data.khachThueList || [];
-        
-        setHopDongList(hopDongs);
-        setPhongList(phongs);
-        setKhachThueList(khachThues);
-        
-        // Lưu vào cache
-        cache.setCache({
-          hoaDonList: hoaDons,
-          hopDongList: hopDongs,
-          phongList: phongs,
-          khachThueList: khachThues,
-        });
-      } else {
-        console.error('Failed to load form data:', formDataResponse.status);
-      }
+      setHoaDonList(hoaDons);
+      setHopDongList(hopDongs);
+      setPhongList(phongs);
+      setKhachThueList(khachThues);
+      
+      cache.setCache({
+        hoaDonList: hoaDons,
+        hopDongList: hopDongs,
+        phongList: phongs,
+        khachThueList: khachThues,
+      });
+
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -219,45 +213,29 @@ export default function HoaDonPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa hóa đơn này?')) return;
     try {
-      const response = await fetch(`/api/hoa-don?id=${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        cache.clearCache();
-        setHoaDonList(prev => prev.filter(hoaDon => hoaDon._id !== id));
-        toast.success('Hóa đơn đã được xóa thành công');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra khi xóa hóa đơn');
-      }
-    } catch (error) {
+      await hoaDonService.delete(id);
+      cache.clearCache();
+      setHoaDonList(prev => prev.filter(hoaDon => hoaDon._id !== id));
+      toast.success('Hóa đơn đã được xóa thành công');
+    } catch (error: any) {
       console.error('Error deleting hoa don:', error);
-      toast.error('Có lỗi xảy ra khi xóa hóa đơn');
+      toast.error(error.message || 'Có lỗi xảy ra khi xóa hóa đơn');
     }
   };
 
   const handleDeleteMultiple = async (ids: string[]) => {
-    if (ids.length === 0) return;
+    if (ids.length === 0 || !confirm(`Bạn có chắc muốn xóa ${ids.length} hóa đơn này?`)) return;
     
     try {
-      // Xóa từng hóa đơn (có thể cải thiện bằng batch delete API)
-      const deletePromises = ids.map(id => 
-        fetch(`/api/hoa-don?id=${id}`, { method: 'DELETE' })
-      );
+      const deletePromises = ids.map(id => hoaDonService.delete(id));
+      await Promise.allSettled(deletePromises);
       
-      const results = await Promise.all(deletePromises);
-      const failedDeletes = results.filter(result => !result.ok);
-      
-      if (failedDeletes.length === 0) {
-        cache.clearCache();
-        setHoaDonList(prev => prev.filter(hoaDon => !ids.includes(hoaDon._id!)));
-        toast.success(`Đã xóa thành công ${ids.length} hóa đơn`);
-      } else {
-        toast.error(`Có ${failedDeletes.length} hóa đơn không thể xóa`);
-      }
-    } catch (error) {
+      cache.clearCache();
+      setHoaDonList(prev => prev.filter(hoaDon => !ids.includes(hoaDon._id!)));
+      toast.success(`Đã xử lý xóa ${ids.length} hóa đơn`);
+    } catch (error: any) {
       console.error('Error deleting multiple hoa don:', error);
       toast.error('Có lỗi xảy ra khi xóa hóa đơn');
     }
@@ -544,25 +522,16 @@ export default function HoaDonPage() {
 
     setIsAutoCreating(true);
     try {
-      const response = await fetch('/api/auto-invoice', {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(`Đã tạo ${result.data.createdInvoices} hóa đơn tự động`);
-        if (result.data.errors.length > 0) {
-          toast.warning(`Một số lỗi xảy ra: ${result.data.errors.length} lỗi`);
-          console.warn('Chi tiết lỗi:', result.data.errors);
-        }
-        fetchData(); // Refresh data
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra khi tạo hóa đơn tự động');
+      const response = await hoaDonService.autoCreate();
+      toast.success(`Đã tạo ${response.createdInvoices} hóa đơn tự động`);
+      if (response.errors && response.errors.length > 0) {
+        toast.warning(`Một số lỗi xảy ra: ${response.errors.length} lỗi`);
+        console.warn('Chi tiết lỗi:', response.errors);
       }
-    } catch (error) {
+      fetchData(); // Refresh data
+    } catch (error: any) {
       console.error('Error auto creating invoices:', error);
-      toast.error('Có lỗi xảy ra khi tạo hóa đơn tự động');
+      toast.error(error.message || 'Có lỗi xảy ra khi tạo hóa đơn tự động');
     } finally {
       setIsAutoCreating(false);
     }
@@ -1080,27 +1049,13 @@ function PaymentForm({
       
       console.log('Submitting payment:', requestData);
       
-      const response = await fetch('/api/thanh-toan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
+      const result = await thanhToanService.create(requestData as any);
 
-      if (response.ok) {
-        const result = await response.json();
-        // Xóa cache và trả về dữ liệu hóa đơn đã cập nhật
-        sessionStorage.removeItem('hoa-don-data');
-        toast.success(result.message || 'Thanh toán đã được tạo thành công');
-        onSuccess(result.data?.hoaDon); // Truyền hóa đơn đã cập nhật
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
+      toast.success('Thanh toán đã được tạo thành công');
+      onSuccess(result.hoaDon as any); // Truyền hóa đơn đã cập nhật
+    } catch (error: any) {
       console.error('Error submitting payment:', error);
-      toast.error('Có lỗi xảy ra khi tạo thanh toán');
+      toast.error(error.message || 'Có lỗi xảy ra khi tạo thanh toán');
     } finally {
       setSubmitting(false);
     }

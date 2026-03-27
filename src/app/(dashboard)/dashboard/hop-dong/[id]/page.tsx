@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import { HopDong, Phong, KhachThue } from '@/types';
 import { toast } from 'sonner';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -85,58 +88,43 @@ export default function ChinhSuaHopDongPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch hợp đồng chi tiết theo ID
-      const hopDongResponse = await fetch(`/api/hop-dong/${hopDongId}`);
-      if (hopDongResponse.ok) {
-        const hopDongData = await hopDongResponse.json();
-        const hopDongItem = hopDongData.data;
-        if (hopDongItem) {
-          setHopDong(hopDongItem);
-          console.log('Hop dong loaded for editing:', hopDongItem);
-          
-          setFormData({
-            maHopDong: hopDongItem.maHopDong || '',
-            phong: typeof hopDongItem.phong === 'object' ? (hopDongItem.phong as {_id: string})?._id || '' : hopDongItem.phong || '',
-            khachThueId: hopDongItem.khachThueId?.map((kt: string | { _id: string }) => typeof kt === 'object' ? kt._id : kt) || [],
-            nguoiDaiDien: typeof hopDongItem.nguoiDaiDien === 'object' ? (hopDongItem.nguoiDaiDien as {_id: string})?._id || '' : hopDongItem.nguoiDaiDien || '',
-            ngayBatDau: hopDongItem.ngayBatDau ? hopDongItem.ngayBatDau.toString().split('T')[0] : new Date().toISOString().split('T')[0],
-            ngayKetThuc: hopDongItem.ngayKetThuc ? hopDongItem.ngayKetThuc.toString().split('T')[0] : '',
-            giaThue: hopDongItem.giaThue || 0,
-            tienCoc: hopDongItem.tienCoc || 0,
-            chuKyThanhToan: hopDongItem.chuKyThanhToan || 'thang',
-            ngayThanhToan: hopDongItem.ngayThanhToan || 15,
-            dieuKhoan: hopDongItem.dieuKhoan || '',
-            giaDien: hopDongItem.giaDien || 3500,
-            giaNuoc: hopDongItem.giaNuoc || 25000,
-            chiSoDienBanDau: hopDongItem.chiSoDienBanDau || 0,
-            chiSoNuocBanDau: hopDongItem.chiSoNuocBanDau || 0,
-            phiDichVu: hopDongItem.phiDichVu || [],
-            trangThai: hopDongItem.trangThai || 'hoatDong',
-          });
-        } else {
-          toast.error('Không tìm thấy hợp đồng');
-          router.push('/dashboard/hop-dong');
-          return;
-        }
-      } else {
-        toast.error('Lỗi khi tải thông tin hợp đồng');
+      const [hopDongItem, phongs, khachThues] = await Promise.all([
+        hopDongService.getById(hopDongId),
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
+
+      if (!hopDongItem) {
+        toast.error('Không tìm thấy hợp đồng');
         router.push('/dashboard/hop-dong');
         return;
       }
 
-      // Fetch phong data
-      const phongResponse = await fetch('/api/phong?limit=100');
-      if (phongResponse.ok) {
-        const phongData = await phongResponse.json();
-        setPhongList(phongData.data || []);
-      }
+      setHopDong(hopDongItem);
+      console.log('Hop dong loaded for editing:', hopDongItem);
+      
+      setFormData({
+        maHopDong: hopDongItem.maHopDong || '',
+        phong: typeof hopDongItem.phong === 'object' ? (hopDongItem.phong as {_id: string})?._id || '' : hopDongItem.phong || '',
+        khachThueId: hopDongItem.khachThueId?.map((kt: string | { _id: string }) => typeof kt === 'object' ? kt._id : kt) || [],
+        nguoiDaiDien: typeof hopDongItem.nguoiDaiDien === 'object' ? (hopDongItem.nguoiDaiDien as {_id: string})?._id || '' : hopDongItem.nguoiDaiDien || '',
+        ngayBatDau: hopDongItem.ngayBatDau ? hopDongItem.ngayBatDau.toString().split('T')[0] : new Date().toISOString().split('T')[0],
+        ngayKetThuc: hopDongItem.ngayKetThuc ? hopDongItem.ngayKetThuc.toString().split('T')[0] : '',
+        giaThue: hopDongItem.giaThue || 0,
+        tienCoc: hopDongItem.tienCoc || 0,
+        chuKyThanhToan: hopDongItem.chuKyThanhToan || 'thang',
+        ngayThanhToan: hopDongItem.ngayThanhToan || 15,
+        dieuKhoan: hopDongItem.dieuKhoan || '',
+        giaDien: hopDongItem.giaDien || 3500,
+        giaNuoc: hopDongItem.giaNuoc || 25000,
+        chiSoDienBanDau: hopDongItem.chiSoDienBanDau || 0,
+        chiSoNuocBanDau: hopDongItem.chiSoNuocBanDau || 0,
+        phiDichVu: hopDongItem.phiDichVu || [],
+        trangThai: hopDongItem.trangThai || 'hoatDong',
+      });
 
-      // Fetch khach thue data
-      const khachThueResponse = await fetch('/api/khach-thue?limit=100');
-      if (khachThueResponse.ok) {
-        const khachThueData = await khachThueResponse.json();
-        setKhachThueList(khachThueData.data || []);
-      }
+      setPhongList(phongs || []);
+      setKhachThueList(khachThues || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Có lỗi xảy ra khi tải dữ liệu');
@@ -216,34 +204,20 @@ export default function ChinhSuaHopDongPage() {
     setSubmitting(true);
     
     try {
-      const response = await fetch(`/api/hop-dong/${hopDongId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          ngayBatDau: new Date(formData.ngayBatDau).toISOString(),
-          ngayKetThuc: new Date(formData.ngayKetThuc).toISOString(),
-        }),
+      await hopDongService.update(hopDongId, {
+        ...formData,
+        ngayBatDau: new Date(formData.ngayBatDau),
+        ngayKetThuc: new Date(formData.ngayKetThuc),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        // Xóa cache để force refresh data
-        sessionStorage.removeItem('hop-dong-data');
-        toast.success(result.message || 'Đã cập nhật hợp đồng thành công');
-        // Sử dụng replace để không tạo history entry mới
-        // và refresh để cập nhật dữ liệu server-side
-        router.replace('/dashboard/hop-dong');
-        router.refresh();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
+      // Xóa cache để force refresh data
+      sessionStorage.removeItem('hop-dong-data');
+      toast.success('Đã cập nhật hợp đồng thành công');
+      router.replace('/dashboard/hop-dong');
+      router.refresh();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi lưu hợp đồng');
+      toast.error(error.message || 'Có lỗi xảy ra khi lưu hợp đồng');
     } finally {
       setSubmitting(false);
     }

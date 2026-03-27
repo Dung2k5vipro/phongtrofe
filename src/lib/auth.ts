@@ -1,9 +1,7 @@
-import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
 import { NextAuthOptions } from 'next-auth';
-import dbConnect from './mongodb';
-import NguoiDung from '@/models/NguoiDung';
-import { compare } from 'bcryptjs';
+import CredentialsProvider from 'next-auth/providers/credentials';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,31 +17,30 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          await dbConnect();
-          
-          const user = await NguoiDung.findOne({ 
-            email: credentials.email.toLowerCase(),
-            trangThai: 'hoatDong'
-          }).select('+matKhau');
+          const res = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: credentials.email.toLowerCase(),
+              password: credentials.matKhau
+            })
+          });
 
-          if (!user) {
-            return null;
+          const data = await res.json();
+
+          if (res.ok && data.success && data.data) {
+            // data.data chứa { id, name, email, role, token }
+            return {
+              id: data.data.id.toString(),
+              email: data.data.email,
+              name: data.data.name,
+              role: data.data.role,
+              token: data.data.token, 
+              // API chưa trả phone và avatar, có thể bổ sung sau nếu cần
+            };
           }
 
-          const isPasswordValid = await user.comparePassword(credentials.matKhau);
-
-          if (!isPasswordValid) {
-            return null;
-          }
-
-          return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.ten,
-            role: user.vaiTro,
-            phone: user.soDienThoai,
-            avatar: user.anhDaiDien,
-          };
+          return null;
         } catch (error) {
           console.error('Auth error:', error);
           return null;
@@ -58,9 +55,8 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
-        token.phone = user.phone;
-        token.avatar = user.avatar;
+        token.role = (user as any).role;
+        token.accessToken = (user as any).token;
       }
       return token;
     },
@@ -68,8 +64,8 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.sub!;
         session.user.role = token.role as string;
-        session.user.phone = token.phone as string;
-        session.user.avatar = token.avatar as string;
+        // Gắn token vào session để truyền xuống các API Client
+        (session.user as any).token = token.accessToken as string; 
       }
       return session;
     }
@@ -80,6 +76,3 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
-
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };

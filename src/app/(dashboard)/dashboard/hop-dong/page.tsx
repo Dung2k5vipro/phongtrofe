@@ -25,9 +25,9 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Plus, 
-  FileText, 
+import {
+  Plus,
+  FileText,
   Calendar,
   Download,
   Edit,
@@ -44,6 +44,10 @@ import { HopDongDataTable } from './table';
 import { toast } from 'sonner';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
+import { toaNhaService } from '@/services/toaNhaService';
 
 export default function HopDongPage() {
   const router = useRouter();
@@ -53,7 +57,7 @@ export default function HopDongPage() {
     khachThueList: KhachThue[];
     toaNhaList: ToaNha[];
   }>({ key: 'hop-dong-data', duration: 300000 }); // 5 phút
-  
+
   const [hopDongList, setHopDongList] = useState<HopDong[]>([]);
   const [phongList, setPhongList] = useState<Phong[]>([]);
   const [khachThueList, setKhachThueList] = useState<KhachThue[]>([]);
@@ -76,7 +80,7 @@ export default function HopDongPage() {
   const fetchData = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      
+
       // Thử load từ cache trước (nếu không force refresh)
       if (!forceRefresh) {
         const cachedData = cache.getCache();
@@ -89,29 +93,17 @@ export default function HopDongPage() {
           return;
         }
       }
-      
-      // Fetch hop dong data
-      const hopDongResponse = await fetch('/api/hop-dong?limit=100');
-      const hopDongData = hopDongResponse.ok ? await hopDongResponse.json() : { data: [] };
-      const hopDongs = hopDongData.data || [];
+
+      const [hopDongs, phongs, khachThues, toaNhas] = await Promise.all([
+        hopDongService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll(),
+        toaNhaService.getAll()
+      ]);
+
       setHopDongList(hopDongs);
-
-      // Fetch phong data
-      const phongResponse = await fetch('/api/phong?limit=100');
-      const phongData = phongResponse.ok ? await phongResponse.json() : { data: [] };
-      const phongs = phongData.data || [];
       setPhongList(phongs);
-
-      // Fetch khach thue data
-      const khachThueResponse = await fetch('/api/khach-thue?limit=100');
-      const khachThueData = khachThueResponse.ok ? await khachThueResponse.json() : { data: [] };
-      const khachThues = khachThueData.data || [];
       setKhachThueList(khachThues);
-
-      // Fetch toa nha data
-      const toaNhaResponse = await fetch('/api/toa-nha?limit=100');
-      const toaNhaData = toaNhaResponse.ok ? await toaNhaResponse.json() : { data: [] };
-      const toaNhas = toaNhaData.data || [];
       setToaNhaList(toaNhas);
 
       // Lưu vào cache
@@ -139,9 +131,9 @@ export default function HopDongPage() {
 
   const filteredHopDong = hopDongList.filter(hopDong => {
     const matchesSearch = hopDong.maHopDong.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         hopDong.dieuKhoan.toLowerCase().includes(searchTerm.toLowerCase());
+      hopDong.dieuKhoan.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || hopDong.trangThai === statusFilter;
-    
+
     // Filter by toa nha
     let matchesToaNha = true;
     if (toaNhaFilter !== 'all') {
@@ -152,7 +144,7 @@ export default function HopDongPage() {
         matchesToaNha = phong?.toaNha === toaNhaFilter;
       }
     }
-    
+
     return matchesSearch && matchesStatus && matchesToaNha;
   });
 
@@ -192,10 +184,10 @@ export default function HopDongPage() {
         toaNha: phong.toaNha?.tenToaNha || 'Không xác định'
       };
     }
-    
+
     const phongObj = phongList.find(p => p._id === phong);
     if (!phongObj) return { maPhong: 'Không xác định', toaNha: 'Không xác định' };
-    
+
     const toaNha = toaNhaList.find(t => t._id === phongObj.toaNha);
     return {
       maPhong: phongObj.maPhong,
@@ -242,18 +234,12 @@ export default function HopDongPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/hop-dong/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        // Xóa cache
-        cache.clearCache();
-        setHopDongList(prev => prev.filter(hopDong => hopDong._id !== id));
-        toast.success('Đã xóa hợp đồng thành công');
-      } else {
-        toast.error('Có lỗi xảy ra khi xóa hợp đồng');
-      }
+      await hopDongService.delete(id);
+
+      // Xóa cache
+      cache.clearCache();
+      setHopDongList(prev => prev.filter(hopDong => hopDong._id !== id));
+      toast.success('Đã xóa hợp đồng thành công');
     } catch (error) {
       console.error('Error deleting hop dong:', error);
       toast.error('Có lỗi xảy ra khi xóa hợp đồng');
@@ -262,21 +248,21 @@ export default function HopDongPage() {
 
   const handleDownload = async (hopDong: HopDong) => {
     try {
-    // Generate contract content
-    const phongInfo = getPhongInfo(hopDong.phong);
-    const nguoiDaiDien = getKhachThueName(hopDong.nguoiDaiDien);
-    
+      // Generate contract content
+      const phongInfo = getPhongInfo(hopDong.phong);
+      const nguoiDaiDien = getKhachThueName(hopDong.nguoiDaiDien);
+
       // Lấy thông tin chi tiết của người đại diện
       const nguoiDaiDienObj = khachThueList.find(kt => {
         const ktId = typeof kt._id === 'object' ? (kt._id as { _id: string })._id : kt._id;
         const daiDienId = typeof hopDong.nguoiDaiDien === 'object' ? (hopDong.nguoiDaiDien as { _id: string })._id : hopDong.nguoiDaiDien;
         return ktId === daiDienId;
       });
-      
+
       const ngayBatDau = new Date(hopDong.ngayBatDau);
       const ngayKetThuc = new Date(hopDong.ngayKetThuc);
       const ngayHienTai = new Date();
-      
+
       // Tạo document Word
       const doc = new Document({
         sections: [{
@@ -305,7 +291,7 @@ export default function HopDongPage() {
               alignment: AlignmentType.CENTER,
               spacing: { after: 400 },
             }),
-            
+
             // Title
             new Paragraph({
               children: [
@@ -329,7 +315,7 @@ export default function HopDongPage() {
               alignment: AlignmentType.CENTER,
               spacing: { after: 400 },
             }),
-            
+
             // Date and location
             new Paragraph({
               children: [
@@ -349,7 +335,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Parties
             new Paragraph({
               children: [
@@ -407,7 +393,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 200 },
             }),
-            
+
             new Paragraph({
               children: [
                 new TextRun({
@@ -454,7 +440,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Agreement
             new Paragraph({
               children: [
@@ -528,7 +514,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Responsibilities
             new Paragraph({
               children: [
@@ -632,7 +618,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Common responsibilities
             new Paragraph({
               children: [
@@ -698,7 +684,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Additional services
             ...(hopDong.phiDichVu.length > 0 ? [
               new Paragraph({
@@ -711,7 +697,7 @@ export default function HopDongPage() {
                 ],
                 spacing: { after: 200 },
               }),
-              ...hopDong.phiDichVu.map(phi => 
+              ...hopDong.phiDichVu.map(phi =>
                 new Paragraph({
                   children: [
                     new TextRun({
@@ -732,7 +718,7 @@ export default function HopDongPage() {
                 spacing: { after: 200 },
               }),
             ] : []),
-            
+
             // Additional terms
             new Paragraph({
               children: [
@@ -753,7 +739,7 @@ export default function HopDongPage() {
               ],
               spacing: { after: 400 },
             }),
-            
+
             // Signatures
             new Paragraph({
               children: [
@@ -776,7 +762,7 @@ export default function HopDongPage() {
               alignment: AlignmentType.CENTER,
               spacing: { after: 400 },
             }),
-            
+
             // Footer info
             new Paragraph({
               children: [
@@ -805,7 +791,7 @@ export default function HopDongPage() {
       const uint8Array = new Uint8Array(buffer);
       const blob = new Blob([uint8Array], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       saveAs(blob, `hop-dong-${hopDong.maHopDong}.docx`);
-      
+
       toast.success('Đã tải xuống hợp đồng thành công!');
     } catch (error) {
       console.error('Error generating Word document:', error);
@@ -818,28 +804,17 @@ export default function HopDongPage() {
     if (newEndDate) {
       setActionLoading(`giahan-${hopDong._id}`);
       try {
-        const response = await fetch(`/api/hop-dong/${hopDong._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ngayKetThuc: newEndDate,
-          }),
+        const result = await hopDongService.update(hopDong._id!, {
+          ngayKetThuc: new Date(newEndDate),
         });
-        
-        if (response.ok) {
-          const result = await response.json();
-          // Xóa cache
-          cache.clearCache();
-          // Cập nhật state trực tiếp thay vì reload
-          setHopDongList(prev => prev.map(hd => 
-            hd._id === hopDong._id ? result.data : hd
-          ));
-          toast.success('Đã gia hạn hợp đồng thành công');
-        } else {
-          toast.error('Có lỗi xảy ra khi gia hạn hợp đồng');
-        }
+
+        // Xóa cache
+        cache.clearCache();
+        // Cập nhật state trực tiếp thay vì reload
+        setHopDongList(prev => prev.map(hd =>
+          hd._id === hopDong._id ? result : hd
+        ));
+        toast.success('Đã gia hạn hợp đồng thành công');
       } catch (error) {
         console.error('Error extending contract:', error);
         toast.error('Có lỗi xảy ra khi gia hạn hợp đồng');
@@ -853,28 +828,17 @@ export default function HopDongPage() {
     if (confirm('Bạn có chắc chắn muốn hủy hợp đồng này?')) {
       setActionLoading(`huy-${hopDong._id}`);
       try {
-        const response = await fetch(`/api/hop-dong/${hopDong._id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            trangThai: 'daHuy',
-          }),
+        const result = await hopDongService.update(hopDong._id!, {
+          trangThai: 'daHuy',
         });
-        
-        if (response.ok) {
-          const result = await response.json();
-          // Xóa cache
-          cache.clearCache();
-          // Cập nhật state trực tiếp thay vì reload
-          setHopDongList(prev => prev.map(hd => 
-            hd._id === hopDong._id ? result.data : hd
-          ));
-          toast.success('Đã hủy hợp đồng thành công');
-        } else {
-          toast.error('Có lỗi xảy ra khi hủy hợp đồng');
-        }
+
+        // Xóa cache
+        cache.clearCache();
+        // Cập nhật state trực tiếp thay vì reload
+        setHopDongList(prev => prev.map(hd =>
+          hd._id === hopDong._id ? result : hd
+        ));
+        toast.success('Đã hủy hợp đồng thành công');
       } catch (error) {
         console.error('Error cancelling contract:', error);
         toast.error('Có lỗi xảy ra khi hủy hợp đồng');
@@ -905,7 +869,7 @@ export default function HopDongPage() {
           <p className="text-xs md:text-sm text-gray-600">Danh sách tất cả hợp đồng trong hệ thống</p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
@@ -927,11 +891,11 @@ export default function HopDongPage() {
       {viewingHopDong && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/50" 
+          <div
+            className="fixed inset-0 bg-black/50"
             onClick={() => setViewingHopDong(null)}
           />
-          
+
           {/* Modal Content */}
           <div className="relative w-full h-full md:w-[95vw] md:h-[95vh] md:max-w-6xl bg-white md:rounded-lg shadow-lg overflow-hidden flex flex-col">
             {/* Fixed Header */}
@@ -942,16 +906,16 @@ export default function HopDongPage() {
                   Thông tin chi tiết hợp đồng {viewingHopDong.maHopDong}
                 </p>
               </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewingHopDong(null)}
-                  className="h-8 w-8 p-0"
-                >
-                  <CloseIcon className="h-4 w-4" />
-                </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewingHopDong(null)}
+                className="h-8 w-8 p-0"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </Button>
             </div>
-            
+
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               <div className="space-y-4 md:space-y-6">
@@ -1187,7 +1151,7 @@ export default function HopDongPage() {
           <h2 className="text-lg font-semibold">Danh sách hợp đồng</h2>
           <span className="text-sm text-gray-500">{filteredHopDong.length} hợp đồng</span>
         </div>
-        
+
         {/* Mobile Filters */}
         <div className="space-y-2 mb-4">
           <div className="relative">

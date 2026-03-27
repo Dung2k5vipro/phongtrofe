@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Home, FileText, AlertCircle, MapPin, Calendar, DollarSign, Phone, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { khachThueService } from '@/services/khachThueService';
 
 export default function KhachThueDashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -19,15 +20,10 @@ export default function KhachThueDashboardPage() {
       const token = localStorage.getItem('khachThueToken');
       if (!token) return;
 
-      const response = await fetch('/api/auth/khach-thue/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        setDashboardData(result.data);
+      const result = await khachThueService.me(token);
+      
+      if (result) {
+        setDashboardData(result);
       } else {
         toast.error('Không thể tải thông tin');
       }
@@ -148,7 +144,7 @@ export default function KhachThueDashboardPage() {
                     <p className="text-sm text-muted-foreground">Tòa nhà</p>
                     <p className="font-medium">{hopDongHienTai.phong.toaNha.tenToaNha}</p>
                     <p className="text-sm text-muted-foreground">
-                      {hopDongHienTai.phong.toaNha.diaChi?.duong}, {hopDongHienTai.phong.toaNha.diaChi?.phuong}
+                      {hopDongHienTai.phong.toaNha.duong}, {hopDongHienTai.phong.toaNha.phuong}
                     </p>
                   </div>
                 </div>

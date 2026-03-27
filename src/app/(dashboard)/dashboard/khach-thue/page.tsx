@@ -41,6 +41,7 @@ import {
   Copy
 } from 'lucide-react';
 import { KhachThue } from '@/types';
+import { khachThueService } from '@/services/khachThueService';
 import { KhachThueDataTable } from './table';
 import { CCCDUpload } from '@/components/ui/cccd-upload';
 import { DeleteConfirmPopover } from '@/components/ui/delete-confirm-popover';
@@ -80,18 +81,11 @@ export default function KhachThuePage() {
         }
       }
       
-      const params = new URLSearchParams();
-      if (selectedTrangThai && selectedTrangThai !== 'all') params.append('trangThai', selectedTrangThai);
+      const filterObj: any = {};
+      if (selectedTrangThai && selectedTrangThai !== 'all') filterObj.trangThai = selectedTrangThai;
       
-      const response = await fetch(`/api/khach-thue?${params.toString()}&limit=100`);
-      let khachThueData: KhachThue[] = [];
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          khachThueData = result.data;
-          setKhachThueList(khachThueData);
-        }
-      }
+      const khachThueData = await khachThueService.getAll(filterObj);
+      setKhachThueList(khachThueData);
       
       // Lưu cache với data mới
       if (khachThueData.length > 0) {
@@ -134,26 +128,13 @@ export default function KhachThuePage() {
     if (confirm('Bạn có chắc chắn muốn xóa khách thuê này?')) {
       setActionLoading(`delete-${id}`);
       try {
-        const response = await fetch(`/api/khach-thue/${id}`, {
-          method: 'DELETE',
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            cache.clearCache();
-            setKhachThueList(prev => prev.filter(khachThue => khachThue._id !== id));
-            toast.success('Xóa khách thuê thành công!');
-          } else {
-            toast.error(result.message || 'Có lỗi xảy ra');
-          }
-        } else {
-          const error = await response.json();
-          toast.error(error.message || 'Có lỗi xảy ra');
-        }
-      } catch (error) {
+        await khachThueService.delete(id);
+        cache.clearCache();
+        setKhachThueList(prev => prev.filter(khachThue => khachThue._id !== id));
+        toast.success('Xóa khách thuê thành công!');
+      } catch (error: any) {
         console.error('Error deleting khach thue:', error);
-        toast.error('Có lỗi xảy ra khi xóa khách thuê');
+        toast.error(error.message || 'Có lỗi xảy ra khi xóa khách thuê');
       } finally {
         setActionLoading(null);
       }
@@ -509,37 +490,21 @@ function KhachThueForm({
     setIsSubmitting(true);
     
     try {
-      const url = khachThue ? `/api/khach-thue/${khachThue._id}` : '/api/khach-thue';
-      const method = khachThue ? 'PUT' : 'POST';
-
-      // Chỉ gửi matKhau khi nó được nhập
-      const submitData = { ...formData };
-      if (!submitData.matKhau || submitData.matKhau.trim() === '') {
-        delete (submitData as any).matKhau;
+      const submitData: any = { ...formData };
+      if (!submitData.matKhau) {
+        delete submitData.matKhau;
       }
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          onSuccess(result.data);
-        } else {
-          toast.error(result.message || 'Có lỗi xảy ra');
-        }
+      let result;
+      if (khachThue) {
+        result = await khachThueService.update(khachThue._id as string, submitData);
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Có lỗi xảy ra');
+        result = await khachThueService.create(submitData);
       }
-    } catch (error) {
+      onSuccess(result);
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi form');
+      toast.error(error.message || 'Có lỗi xảy ra khi gửi form');
     } finally {
       setIsSubmitting(false);
     }

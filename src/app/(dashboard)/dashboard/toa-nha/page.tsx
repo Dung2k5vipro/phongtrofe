@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useCache } from '@/hooks/use-cache';
+import { toaNhaService } from '@/services/toaNhaService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -78,15 +79,9 @@ export default function ToaNhaPage() {
         }
       }
       
-      const response = await fetch('/api/toa-nha');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          const toaNhas = result.data;
-          setToaNhaList(toaNhas);
-          cache.setCache({ toaNhaList: toaNhas });
-        }
-      }
+      const toaNhas = await toaNhaService.getAll();
+      setToaNhaList(toaNhas);
+      cache.setCache({ toaNhaList: toaNhas });
     } catch (error) {
       console.error('Error fetching toa nha:', error);
     } finally {
@@ -114,26 +109,13 @@ export default function ToaNhaPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/toa-nha/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          cache.clearCache();
-          setToaNhaList(prev => prev.filter(toaNha => toaNha._id !== id));
-          toast.success('Xóa tòa nhà thành công!');
-        } else {
-          toast.error(result.message || 'Có lỗi xảy ra khi xóa tòa nhà');
-        }
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Có lỗi xảy ra khi xóa tòa nhà');
-      }
-    } catch (error) {
+      await toaNhaService.delete(id);
+      cache.clearCache();
+      setToaNhaList(prev => prev.filter(toaNha => toaNha._id !== id));
+      toast.success('Xóa tòa nhà thành công!');
+    } catch (error: any) {
       console.error('Error deleting toa nha:', error);
-      toast.error('Có lỗi xảy ra khi xóa tòa nhà');
+      toast.error(error.message || 'Có lỗi xảy ra khi xóa tòa nhà');
     }
   };
 
@@ -445,31 +427,15 @@ function ToaNhaForm({
         tienNghiChung: formData.tienNghiChung,
       };
 
-      const url = toaNha ? `/api/toa-nha/${toaNha._id}` : '/api/toa-nha';
-      const method = toaNha ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          onSuccess();
-        } else {
-          toast.error(result.message || 'Có lỗi xảy ra');
-        }
+      if (toaNha) {
+        await toaNhaService.update(toaNha._id as string, submitData);
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Có lỗi xảy ra');
+        await toaNhaService.create(submitData);
       }
-    } catch (error) {
+      onSuccess();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi form');
+      toast.error(error.message || 'Có lỗi xảy ra khi gửi form');
     }
   };
 

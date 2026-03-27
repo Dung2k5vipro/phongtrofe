@@ -25,6 +25,10 @@ import {
   Calculator
 } from 'lucide-react';
 import { HoaDon, HopDong, Phong, KhachThue } from '@/types';
+import { hoaDonService } from '@/services/hoaDonService';
+import { hopDongService } from '@/services/hopDongService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
 import { toast } from 'sonner';
 
 // Helper functions
@@ -101,70 +105,60 @@ export default function ChinhSuaHoaDonPage() {
   const fetchData = async () => {
     try {
       // Fetch hóa đơn chi tiết theo ID
-      const hoaDonResponse = await fetch(`/api/hoa-don?id=${hoaDonId}`);
-      if (hoaDonResponse.ok) {
-        const hoaDonData = await hoaDonResponse.json();
-        const hoaDonItem = hoaDonData.data;
-        if (hoaDonItem) {
-          setHoaDon(hoaDonItem);
-          console.log('Hoa don loaded for editing:', hoaDonItem);
-          
-          // Set form data
-          console.log('Setting form data with electricity readings:', {
-            chiSoDienBanDau: hoaDonItem.chiSoDienBanDau,
-            chiSoDienCuoiKy: hoaDonItem.chiSoDienCuoiKy,
-            chiSoNuocBanDau: hoaDonItem.chiSoNuocBanDau,
-            chiSoNuocCuoiKy: hoaDonItem.chiSoNuocCuoiKy
-          });
-          
-          setFormData({
-            maHoaDon: hoaDonItem.maHoaDon || '',
-            hopDong: typeof hoaDonItem.hopDong === 'object' ? (hoaDonItem.hopDong as {_id: string})?._id || '' : hoaDonItem.hopDong || '',
-            phong: typeof hoaDonItem.phong === 'object' ? (hoaDonItem.phong as {_id: string})?._id || '' : hoaDonItem.phong || '',
-            khachThue: typeof hoaDonItem.khachThue === 'object' ? (hoaDonItem.khachThue as {_id: string})?._id || '' : hoaDonItem.khachThue || '',
-            thang: hoaDonItem.thang || new Date().getMonth() + 1,
-            nam: hoaDonItem.nam || new Date().getFullYear(),
-            tienPhong: hoaDonItem.tienPhong || 0,
-            tienDien: hoaDonItem.tienDien || 0,
-            soDien: hoaDonItem.soDien || 0,
-            chiSoDienBanDau: hoaDonItem.chiSoDienBanDau ?? 0,
-            chiSoDienCuoiKy: hoaDonItem.chiSoDienCuoiKy ?? 0,
-            tienNuoc: hoaDonItem.tienNuoc || 0,
-            soNuoc: hoaDonItem.soNuoc || 0,
-            chiSoNuocBanDau: hoaDonItem.chiSoNuocBanDau ?? 0,
-            chiSoNuocCuoiKy: hoaDonItem.chiSoNuocCuoiKy ?? 0,
-            phiDichVu: hoaDonItem.phiDichVu || [],
-            tongTien: hoaDonItem.tongTien || 0,
-            daThanhToan: hoaDonItem.daThanhToan || 0,
-            conLai: hoaDonItem.conLai || 0,
-            trangThai: hoaDonItem.trangThai || 'chuaThanhToan',
-            hanThanhToan: hoaDonItem.hanThanhToan ? 
-              (typeof hoaDonItem.hanThanhToan === 'string' ? (hoaDonItem.hanThanhToan as string).split('T')[0] : 
-               new Date(hoaDonItem.hanThanhToan as Date).toISOString().split('T')[0]) : '',
-            ghiChu: hoaDonItem.ghiChu || '',
-          });
-        } else {
-          toast.error('Không tìm thấy hóa đơn');
-          router.push('/dashboard/hoa-don');
-          return;
-        }
+      const hoaDonItem = await hoaDonService.getById(hoaDonId);
+      if (hoaDonItem) {
+        setHoaDon(hoaDonItem);
+        console.log('Hoa don loaded for editing:', hoaDonItem);
+        
+        // Set form data
+        console.log('Setting form data with electricity readings:', {
+          chiSoDienBanDau: hoaDonItem.chiSoDienBanDau,
+          chiSoDienCuoiKy: hoaDonItem.chiSoDienCuoiKy,
+          chiSoNuocBanDau: hoaDonItem.chiSoNuocBanDau,
+          chiSoNuocCuoiKy: hoaDonItem.chiSoNuocCuoiKy
+        });
+        
+        setFormData({
+          maHoaDon: hoaDonItem.maHoaDon || '',
+          hopDong: typeof hoaDonItem.hopDong === 'object' ? (hoaDonItem.hopDong as {_id: string})?._id || '' : (hoaDonItem.hopDong || hoaDonItem.hopDong_id || ''),
+          phong: typeof hoaDonItem.phong === 'object' ? (hoaDonItem.phong as {_id: string})?._id || '' : (hoaDonItem.phong || hoaDonItem.phong_id || ''),
+          khachThue: typeof hoaDonItem.khachThue === 'object' ? (hoaDonItem.khachThue as {_id: string})?._id || '' : (hoaDonItem.khachThue || hoaDonItem.khachThue_id || ''),
+          thang: hoaDonItem.thang || new Date().getMonth() + 1,
+          nam: hoaDonItem.nam || new Date().getFullYear(),
+          tienPhong: hoaDonItem.tienPhong || 0,
+          tienDien: hoaDonItem.tienDien || 0,
+          soDien: hoaDonItem.soDien || 0,
+          chiSoDienBanDau: hoaDonItem.chiSoDienBanDau ?? 0,
+          chiSoDienCuoiKy: hoaDonItem.chiSoDienCuoiKy ?? 0,
+          tienNuoc: hoaDonItem.tienNuoc || 0,
+          soNuoc: hoaDonItem.soNuoc || 0,
+          chiSoNuocBanDau: hoaDonItem.chiSoNuocBanDau ?? 0,
+          chiSoNuocCuoiKy: hoaDonItem.chiSoNuocCuoiKy ?? 0,
+          phiDichVu: (typeof hoaDonItem.phiDichVu === 'string' ? JSON.parse(hoaDonItem.phiDichVu) : hoaDonItem.phiDichVu) || [],
+          tongTien: hoaDonItem.tongTien || 0,
+          daThanhToan: hoaDonItem.daThanhToan || 0,
+          conLai: hoaDonItem.conLai || 0,
+          trangThai: hoaDonItem.trangThai || 'chuaThanhToan',
+          hanThanhToan: hoaDonItem.hanThanhToan ? 
+            (typeof hoaDonItem.hanThanhToan === 'string' ? (hoaDonItem.hanThanhToan as string).split('T')[0] : 
+             new Date(hoaDonItem.hanThanhToan as Date).toISOString().split('T')[0]) : '',
+          ghiChu: hoaDonItem.ghiChu || '',
+        });
       } else {
-        toast.error('Lỗi khi tải thông tin hóa đơn');
+        toast.error('Không tìm thấy hóa đơn');
         router.push('/dashboard/hoa-don');
         return;
       }
 
       // Fetch form data (hop dong, phong, khach thue)
-      const formDataResponse = await fetch('/api/hoa-don/form-data');
-      if (formDataResponse.ok) {
-        const formData = await formDataResponse.json();
-        console.log('Form data loaded:', formData.data);
-        setHopDongList(formData.data.hopDongList || []);
-        setPhongList(formData.data.phongList || []);
-        setKhachThueList(formData.data.khachThueList || []);
-      } else {
-        console.error('Failed to load form data:', formDataResponse.status);
-      }
+      const [hopDongs, phongs, khachThues] = await Promise.all([
+        hopDongService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
+      setHopDongList(hopDongs || []);
+      setPhongList(phongs || []);
+      setKhachThueList(khachThues || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Có lỗi xảy ra khi tải dữ liệu');
@@ -218,28 +212,16 @@ export default function ChinhSuaHoaDonPage() {
       
       console.log('Submitting form data for update:', requestData);
       
-      const response = await fetch('/api/hoa-don', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
+      await hoaDonService.update(hoaDonId, requestData);
 
-      if (response.ok) {
-        const result = await response.json();
-        // Xóa cache
-        sessionStorage.removeItem('hoa-don-data');
-        toast.success(result.message || 'Hóa đơn đã được cập nhật thành công');
-        router.replace('/dashboard/hoa-don');
-        router.refresh();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
+      // Xóa cache
+      sessionStorage.removeItem('hoa-don-data');
+      toast.success('Hóa đơn đã được cập nhật thành công');
+      router.replace('/dashboard/hoa-don');
+      router.refresh();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi dữ liệu');
+      toast.error(error.message || 'Có lỗi xảy ra khi gửi dữ liệu');
     } finally {
       setSubmitting(false);
     }

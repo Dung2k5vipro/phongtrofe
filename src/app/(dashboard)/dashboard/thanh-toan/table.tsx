@@ -326,9 +326,9 @@ const createColumns = (props: ThanhToanTableProps): ColumnDef<ThanhToanPopulated
               Xem chi tiết
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={() => props.onEdit(row.original)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Chỉnh sửa
+          <DropdownMenuItem onClick={() => toast.info('Không thể sửa thanh toán đã tạo. Vui lòng xóa và thêm lại.')}>
+            <Eye className="mr-2 h-4 w-4" />
+            Xem chi tiết
           </DropdownMenuItem>
           {row.original.anhBienLai && props.onDownload && (
             <DropdownMenuItem onClick={() => props.onDownload!(row.original)}>

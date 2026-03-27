@@ -49,6 +49,10 @@ import {
 import { ThongBao, ToaNha, Phong, KhachThue } from '@/types';
 import { toast } from 'sonner';
 import { useCache } from '@/hooks/use-cache';
+import { thongBaoService } from '@/services/thongBaoService';
+import { toaNhaService } from '@/services/toaNhaService';
+import { phongService } from '@/services/phongService';
+import { khachThueService } from '@/services/khachThueService';
 
 export default function ThongBaoPage() {
   const cache = useCache<{
@@ -92,28 +96,16 @@ export default function ThongBaoPage() {
         }
       }
       
-      // Fetch thông báo từ API
-      const thongBaoResponse = await fetch('/api/thong-bao');
-      const thongBaoData = thongBaoResponse.ok ? await thongBaoResponse.json() : { data: [] };
-      const thongBaos = thongBaoData.success ? thongBaoData.data : [];
+      const [thongBaos, toaNhas, phongs, khachThues] = await Promise.all([
+        thongBaoService.getAll(),
+        toaNhaService.getAll(),
+        phongService.getAll(),
+        khachThueService.getAll()
+      ]);
+
       setThongBaoList(thongBaos);
-
-      // Fetch tòa nhà từ API
-      const toaNhaResponse = await fetch('/api/toa-nha');
-      const toaNhaData = toaNhaResponse.ok ? await toaNhaResponse.json() : { data: [] };
-      const toaNhas = toaNhaData.success ? toaNhaData.data : [];
       setToaNhaList(toaNhas);
-
-      // Fetch phòng từ API
-      const phongResponse = await fetch('/api/phong');
-      const phongData = phongResponse.ok ? await phongResponse.json() : { data: [] };
-      const phongs = phongData.success ? phongData.data : [];
       setPhongList(phongs);
-
-      // Fetch khách thuê từ API
-      const khachThueResponse = await fetch('/api/khach-thue');
-      const khachThueData = khachThueResponse.ok ? await khachThueResponse.json() : { data: [] };
-      const khachThues = khachThueData.success ? khachThueData.data : [];
       setKhachThueList(khachThues);
       
       cache.setCache({
@@ -197,20 +189,13 @@ export default function ThongBaoPage() {
   const handleDelete = async (id: string) => {
     if (confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
       try {
-        const response = await fetch(`/api/thong-bao?id=${id}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          cache.clearCache();
-          setThongBaoList(prev => prev.filter(thongBao => thongBao._id !== id));
-          toast.success('Xóa thông báo thành công');
-        } else {
-          toast.error('Có lỗi xảy ra khi xóa thông báo');
-        }
-      } catch (error) {
+        await thongBaoService.delete(id);
+        cache.clearCache();
+        setThongBaoList(prev => prev.filter(thongBao => thongBao._id !== id));
+        toast.success('Xóa thông báo thành công');
+      } catch (error: any) {
         console.error('Error deleting thong bao:', error);
-        toast.error('Có lỗi xảy ra khi xóa thông báo');
+        toast.error(error.message || 'Có lỗi xảy ra khi xóa thông báo');
       }
     }
   };
@@ -629,30 +614,16 @@ function ThongBaoForm({
     e.preventDefault();
     
     try {
-      const url = thongBao 
-        ? `/api/thong-bao?id=${thongBao._id}` 
-        : '/api/thong-bao';
-      const method = thongBao ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(thongBao ? 'Cập nhật thông báo thành công' : 'Tạo thông báo thành công');
-        onSuccess();
+      if (thongBao) {
+        await thongBaoService.update(thongBao._id as string, formData);
       } else {
-        toast.error(result.message || 'Có lỗi xảy ra');
+        await thongBaoService.create(formData);
       }
-    } catch (error) {
+      toast.success(thongBao ? 'Cập nhật thông báo thành công' : 'Tạo thông báo thành công');
+      onSuccess();
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      toast.error('Có lỗi xảy ra khi gửi form');
+      toast.error(error.message || 'Có lỗi xảy ra khi gửi form');
     }
   };
 
